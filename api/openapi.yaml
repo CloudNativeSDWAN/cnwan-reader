@@ -1,0 +1,256 @@
+openapi: 3.0.1
+info:
+  contact:
+    email: cnwan@cisco.com
+  description: "The CNWAN Reader implements the [service discovery](https://en.wikipedia.org/wiki/Service_discovery)\n\
+    pattern by connecting to a service registry and observing changes in\nregistered\
+    \ services/endpoints. Detected changes are then processed and sent\nas events\
+    \ to the API endpoints defined below.\n\nEvents are **sent** to the following\
+    \ endpoints, thus any program interested\nin receiving them must generate the\
+    \ *server* code from this OpenAPI\nspecification and define their own logic in\
+    \ the generated code.\n\nBy default, the CNWAN Reader expects the server that\
+    \ will receive events\nto operate on port `80` and receive events on `/cnwan/events`,\
+    \ but if your\nserver uses a different port/endpoint you can override this value\
+    \ on the\ngenerated server code with the one your server is using.\nOnce done,\
+    \ when launching the CNWAN Reader specify the correct endpoint by\nproviding it\
+    \ as a command line argument, e.g. with\n`--adaptor-api localhost:9909` events\
+    \ will be sent on\n`localhost:9909/events`, and with `--adaptor-api example.com/another/path`\n\
+    events will be sent to `example.com/another/path/events`.\n\nAs a final note,\
+    \ please take in mind that this specification can also serve\nas a reference/guide\
+    \ for the creation of an adaptor.  \nAs a matter of fact, your adaptor can even\
+    \ provided its own OpenAPI which\nincludes the endpoints described here with different\
+    \ descriptions and\ndifferent meanings for the response codes, or it can even\
+    \ include other\nendpoints as well. But as long as formats, returned response\
+    \ code and the\nendpoints of this specification match the ones on your adaptor's\n\
+    specification, compatibility with CNWAN Reader is guaranteed."
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: github.com/CloudNativeSDWAN/cnwan-reader/blob/master/LICENSE
+  title: CNWAN Reader API
+  version: 1.0.0 beta
+externalDocs:
+  description: Find out more about the CNWAN Reader
+  url: github.com/CloudNativeSDWAN/cnwan-reader
+servers:
+- url: http://localhost/cnwan
+tags:
+- description: Everything about service events
+  externalDocs:
+    description: Find out more
+    url: github.com/CloudNativeSDWAN/cnwan-reader
+  name: events
+paths:
+  /events:
+    post:
+      operationId: sendEvents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: '#/components/schemas/Event'
+              type: array
+        description: List of observed events
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              examples:
+                With body:
+                  value:
+                    status: 200
+                    title: OK
+                    description: All resources processed successfully.
+                Empty body:
+                  value: {}
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: OK, all resources have been processed successfully. Body can
+            optionally include more information about the response or be empty.
+        "204":
+          description: No content, all resources have been processed successfully.
+        "207":
+          content:
+            application/json:
+              examples:
+                Some resources failed:
+                  value:
+                    status: 207
+                    title: INVALID RESOURCES
+                    description: Some resources have not been processed successfully.
+                      List of failed resources is included.
+                    errors:
+                    - status: 400
+                      resource: custom-endpoint
+                      title: MISSING METADATA KEY
+                      description: The required metadata key was not found in this
+                        resource
+                    - status: 404
+                      resource: example-endpoint
+                      title: NOT FOUND
+                      description: 'Cannot process DELETE event: resource does not
+                        exist.'
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: One or more resources have not been processed successfully.
+            A list of errors is provided.
+        "404":
+          description: Not found, most probably the `--adaptor-api` argument in CNWAN
+            Reader is misconfigured.
+        "500":
+          content:
+            application/json:
+              examples:
+                Generic internal server error:
+                  value:
+                    status: 500
+                    title: INTERNAL SERVER ERROR
+                    description: An unexpected error occurred while handling the request.
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: Internal Server Error, something went wrong on the adaptor
+            side. A `Response` object *may* be returned, containing a description
+            of why the adaptor had this error and what went wrong.
+        "503":
+          content:
+            application/json:
+              examples:
+                Authentication error:
+                  value:
+                    status: 503
+                    title: AUTHENTICATION ERROR
+                    description: Request rejected because wrong or invalid credentials
+                      have been provided to the adaptor.
+                Service unavailalbe:
+                  value:
+                    status: 503
+                    title: SERVICE UNAVAILABLE
+                    description: Adaptor encountered an unexpected error while trying
+                      to update resources on Service X.
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: Service Unavailable. The returned `Response` object may contain
+            a description of why the service is not available.
+      summary: Last observed events
+      tags:
+      - events
+components:
+  schemas:
+    Event:
+      example:
+        service:
+          metadata:
+          - value: uhd-video
+            key: profile
+          - value: uhd-video
+            key: profile
+          address: 131.37.88.10
+          port: 8080
+          name: customers-endpoint
+        event: create
+      properties:
+        event:
+          description: The event that occurred
+          enum:
+          - create
+          - update
+          - delete
+          type: string
+        service:
+          $ref: '#/components/schemas/Service'
+      required:
+      - service
+      - type
+      type: object
+    Service:
+      description: The subject of this event
+      example:
+        metadata:
+        - value: uhd-video
+          key: profile
+        - value: uhd-video
+          key: profile
+        address: 131.37.88.10
+        port: 8080
+        name: customers-endpoint
+      properties:
+        name:
+          description: The observed name of the endpoint.
+          example: customers-endpoint
+          type: string
+        address:
+          description: The observed IP address of the endpoint. Can be IPv4 or IPv6.
+          example: 131.37.88.10
+          type: string
+        port:
+          description: The observed port of the endpoint.
+          example: 8080
+          type: integer
+        metadata:
+          items:
+            $ref: '#/components/schemas/Metadata'
+          type: array
+      required:
+      - address
+      - name
+      - port
+      type: object
+    Metadata:
+      description: The metadata observed. The list only includes the ones that have
+        been included in the command line arguments of the CNWAN Reader.
+      example:
+        value: uhd-video
+        key: profile
+      properties:
+        key:
+          description: The name of the key in the metadata, if present in the object.
+            Included only if required as argument in the CNWAN Reader.
+          example: profile
+          type: string
+        value:
+          description: The observed value of this key in the metadata.
+          example: uhd-video
+          type: string
+      required:
+      - key
+      - value
+      type: object
+    Response:
+      allOf:
+      - $ref: '#/components/schemas/ResourceResponse'
+      - $ref: '#/components/schemas/Errors'
+      description: Response returned.
+      type: object
+    ResourceResponse:
+      description: Information about the error occurred with the resource.
+      properties:
+        status:
+          description: The HTTP status code.
+          example: 404
+          type: integer
+        resource:
+          description: The name of the resource that triggered this error.
+          example: customer-endpoint
+          type: string
+        title:
+          description: A short title describing the error.
+          example: NOT FOUND
+          type: string
+        description:
+          description: Additional information about the error.
+          example: The resource does not exist on the server
+          type: string
+      required:
+      - description
+      - title
+      type: object
+    Errors:
+      properties:
+        errors:
+          description: A list of errors occurred, if any.
+          items:
+            $ref: '#/components/schemas/ResourceResponse'
+          type: array
+      type: object
