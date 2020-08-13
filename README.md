@@ -96,9 +96,6 @@ the CNWAN Reader to send events on `localhost:8080/events` instead of
 `localhost:8080/cnwan/events`. If a port is not provided, `80` will be used
 as default.
 
-As a final note, remember that events will be sent to `/events`, so make sure
-to remove any trailing `/` in `--adaptor-api` argument.
-
 Please follow [OpenAPI Specification](#openapi-specification) to learn more
 about adaptors and [Example](#example) for a complete usage example that
 includes a CNWAN Adaptor endpoint as well.
