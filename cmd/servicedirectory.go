@@ -85,7 +85,7 @@ func runServiceDirectory(cmd *cobra.Command, args []string) {
 	datastore = services.NewDatastore()
 
 	// Get the queue
-	servsHandler, err := services.NewHandler(ctx, sanitizeDockerLocalhost(endpoint))
+	servsHandler, err := services.NewHandler(ctx, sanitizeAdaptorEndpoint(endpoint))
 	if err != nil {
 		l.Fatal().Err(err).Msg("error while trying to connect to service directory")
 	}

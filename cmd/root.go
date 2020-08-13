@@ -78,11 +78,13 @@ func initConfig() {
 	}())
 }
 
-func sanitizeDockerLocalhost(endp string) string {
-	if strings.HasPrefix(endpoint, "localhost") {
+func sanitizeAdaptorEndpoint(endp string) string {
+	endp = strings.Trim(endp, "/")
+
+	if strings.HasPrefix(endp, "localhost") {
 		// Replace localhost in case we are running insde docker
 		if mode := os.Getenv("MODE"); len(mode) > 0 && mode == "docker" {
-			return strings.Replace(endpoint, "localhost", "host.docker.internal", 1)
+			return strings.Replace(endp, "localhost", "host.docker.internal", 1)
 		}
 	}
 
