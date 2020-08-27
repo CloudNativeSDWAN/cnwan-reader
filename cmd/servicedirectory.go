@@ -30,11 +30,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var gcloudProject string
-var gcloudRegion string
-var datastore services.Datastore
-var sendQueue queue.Queue
-var sdHandler sdhandler.Handler
+var (
+	gcloudProject     string
+	gcloudRegion      string
+	gcloudServAccount string
+	datastore         services.Datastore
+	sendQueue         queue.Queue
+	sdHandler         sdhandler.Handler
+)
 
 // servicedirectoryCmd represents the servicedirectory command
 var servicedirectoryCmd = &cobra.Command{
@@ -54,9 +57,11 @@ func init() {
 
 	servicedirectoryCmd.Flags().StringVar(&gcloudProject, "project", "", "gcloud project name")
 	servicedirectoryCmd.Flags().StringVar(&gcloudRegion, "region", "", "gcloud region location. Example: us-west2")
+	servicedirectoryCmd.Flags().StringVar(&gcloudServAccount, "service-account", "", "path to the gcloud service account. Example: ./service-account.json")
 
 	servicedirectoryCmd.MarkFlagRequired("project")
 	servicedirectoryCmd.MarkFlagRequired("region")
+	servicedirectoryCmd.MarkFlagRequired("service-account")
 }
 
 func runServiceDirectory(cmd *cobra.Command, args []string) {
@@ -66,14 +71,8 @@ func runServiceDirectory(cmd *cobra.Command, args []string) {
 
 	ctx, canc := context.WithCancel(context.Background())
 
-	// Parse flags
-	if len(credsPath) == 0 {
-		l.Debug().Msg("resetting credentials path to ./credentials/gcloud-credentials.json")
-		credsPath = "./credentials/gcloud-credentials.json"
-	}
-
 	// Get the handler
-	sdHandler, err = sdhandler.New(ctx, gcloudRegion, metadataKey, gcloudProject, credsPath)
+	sdHandler, err = sdhandler.New(ctx, gcloudRegion, metadataKey, gcloudProject, gcloudServAccount)
 	if err != nil {
 		l.Fatal().Err(err).Msg("error while trying to connect to service directory")
 	}
