@@ -118,11 +118,15 @@ When you use the CNWAN Reader with Service Directory you need to provide
 additional arguments, i.e. the project, the region and the path of your
 Google Cloud service account `JSON` file.
 
-To learn more about Google Cloud Service Accounts, please visit [this page](https://cloud.google.com/iam/docs/service-accounts)
+To learn more about Google Cloud Service Accounts, please visit
+[this page](https://cloud.google.com/iam/docs/service-accounts)
 or read [this guide](https://cloud.google.com/iam/docs/creating-managing-service-accounts).
 
 ```bash
-./cnwan-reader sd --credentials ./credentials/serv-account.json --project my-project --region us-west2
+./cnwan-reader sd \
+--service-account ./credentials/serv-account.json \
+--project my-project \
+--region us-west2
 ```
 
 You can read Service Directory's [documentation](https://cloud.google.com/service-directory/docs)
@@ -136,14 +140,14 @@ Google Cloud Service Directory with the following requirements:
 * The *allowed* services have at least the `key-name` key in their metadata
 * The project is called `my-project`
 * The region is `us-west2`
-* Credentials are placed inside the `creds` folder
+* Service account is placed inside the `creds` folder
 * The name of the service account file is `serv-acc.json`
 * The endpoint of the adaptor is `http://example.com:5588/my/path`
 * Interval between two watches is `10 seconds`
 
 ```bash
 ./cnwan-reader sd \
---credentials ./creds/serv-acc.json \
+--service-account ./creds/serv-acc.json \
 --project my-project \
 --region us-west2 \
 --adaptor-api example.com:5588/my/path \
@@ -174,19 +178,24 @@ building the executable file.
 You can build your own image by first running
 
 ```bash
-make docker-build IMG=<your-name>
+make docker-build IMG=example.com/your_name/image_name:tag_name
 ```
 
-You can also replace `IMG ?= <repository>` as `IMG ?= your-name` in the
-`Makefile` to avoid writing the name every time.  
-Please refrain from building the container with docker commands, i.e.
-`docker build . -t <image>` as the provided method will also test the program
-before building it.
+If you want to avoid having to write the image repository every time, you can
+do so by modifying the provided `Makefile` in the project's root directory:
+replace `IMG ?= <repository>` with
+`IMG ?= example.com/your_name/image_name:tag_name` on the top.
+You can even just name it as `IMG ?= image_name:tag_name` if you later want to
+push it to your DockerHub account or if you just plan to use it locally.
+
+Please refrain from building the container with docker commands directly, i.e.
+`docker build . -t name:tag` as the provided method will
+also test the program before building it.
 
 Run the docker image with:
 
 ```bash
-docker run <image>
+docker run example.com/your_name/image_name:tag_name
 ```
 
 Please follow along for a usage example with docker and to learn how to
@@ -199,22 +208,24 @@ Google Cloud Service Account.
 To learn more about Google Cloud Service Accounts, please visit [this page](https://cloud.google.com/iam/docs/service-accounts)
 or read [this guide](https://cloud.google.com/iam/docs/creating-managing-service-accounts).
 
-Supposing your credentials file is stored in `Desktop/cnwan-credentials` and
-is called `credentials.json`, use this command to mount the file under
-`/credentials` with name `credentials.json` in the docker image:
+Supposing your service account is stored in `Desktop/cnwan-credentials` and
+is called `serv-acc.json`, use this command to mount the file under
+`/credentials` with name `serv-acc.json` in the docker image:
 
 ```bash
-docker run -v ~/Desktop/cnwan-credentials/credentials.json:/credentials/credentials.json \
-<my-image> \
+docker run \
+-v ~/Desktop/cnwan-credentials/serv-acc.json:/credentials/serv-acc.json \
+my-image \
 servicedirectory \
 --project my-project \
 --region us-west2 \
---credentials ./credentials/credentials.json
+--service-account ./credentials/serv-acc.json
 ```
 
-As you can see, the path to the credentials file in the `--credentials`
-arguments must match the one where the file is mounted in the docker image.  
-Please remember that the `-v` argument must come *before* the name of the
+As you can see, the path to the credentials file in the `--service-account`
+flag must match the one where the file is mounted in the docker image, i.e.
+the part after the semicolon `:` in `-v`.  
+Please remember that the `-v` flag must come *before* the name of the
 image.
 
 All other arguments are the same as described in [Usage](#usage).
@@ -222,15 +233,16 @@ All other arguments are the same as described in [Usage](#usage).
 ### Docker Example
 
 ```bash
-docker run -v ~/Desktop/cnwan-credentials/credentials.json:/credentials/credentials.json \
-<my-image> \
+docker run \
+-v ~/Desktop/cnwan-credentials/serv-acc.json:/credentials/serv-acc.json \
+my-image \
 servicedirectory \
 --project my-project \
 --region us-west2 \
 --adaptor-api example.com:5588 \
 --metadata-key key-name \
 --interval 10 \
---credentials ./credentials/credentials.json
+--service-account ./credentials/serv-acc.json
 ```
 
 ## Contributing
