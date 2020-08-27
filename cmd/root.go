@@ -26,12 +26,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var cfgFile string
-var debugMode bool
-var interval int
-var metadataKey string
-var credsPath string
-var endpoint string
+var (
+	debugMode   bool
+	interval    int
+	metadataKey string
+	endpoint    string
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -57,7 +57,6 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "whether to log debug lines")
 	rootCmd.PersistentFlags().IntVarP(&interval, "interval", "i", 5, "number of seconds between two consecutive polls")
 	rootCmd.PersistentFlags().StringVar(&metadataKey, "metadata-key", "", "name of the metadata key to look for")
-	rootCmd.PersistentFlags().StringVar(&credsPath, "credentials", "", "path to the credentials file")
 	rootCmd.PersistentFlags().StringVar(&endpoint, "adaptor-api", "localhost/cnwan", "the api, in forrm of host:port/path, where the events will be sent to. Look at the documentation to learn more about this.")
 
 	// Required flags
