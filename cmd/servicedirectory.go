@@ -54,6 +54,9 @@ func init() {
 
 	servicedirectoryCmd.Flags().StringVar(&gcloudProject, "project", "", "gcloud project name")
 	servicedirectoryCmd.Flags().StringVar(&gcloudRegion, "region", "", "gcloud region location. Example: us-west2")
+
+	servicedirectoryCmd.MarkFlagRequired("project")
+	servicedirectoryCmd.MarkFlagRequired("region")
 }
 
 func runServiceDirectory(cmd *cobra.Command, args []string) {
@@ -64,12 +67,6 @@ func runServiceDirectory(cmd *cobra.Command, args []string) {
 	ctx, canc := context.WithCancel(context.Background())
 
 	// Parse flags
-	if len(gcloudRegion) == 0 {
-		l.Fatal().Err(fmt.Errorf("%s", "region not provided")).Msg("fatal error encountered")
-	}
-	if len(gcloudProject) == 0 {
-		l.Fatal().Err(fmt.Errorf("%s", "project not provided")).Msg("fatal error encountered")
-	}
 	if len(credsPath) == 0 {
 		l.Debug().Msg("resetting credentials path to ./credentials/gcloud-credentials.json")
 		credsPath = "./credentials/gcloud-credentials.json"
