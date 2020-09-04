@@ -111,6 +111,6 @@ func processData() {
 
 	events := datastore.GetEvents(data)
 	if len(events) > 0 {
-		sendQueue.Enqueue(events)
+		go sendQueue.Enqueue(events)
 	}
 }
