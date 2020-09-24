@@ -56,14 +56,7 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "whether to log debug lines")
 	rootCmd.PersistentFlags().IntVarP(&interval, "interval", "i", 5, "number of seconds between two consecutive polls")
-	rootCmd.PersistentFlags().StringVar(&metadataKey, "metadata-key", "", "name of the metadata key to look for")
 	rootCmd.PersistentFlags().StringVar(&endpoint, "adaptor-api", "localhost/cnwan", "the api, in forrm of host:port/path, where the events will be sent to. Look at the documentation to learn more about this.")
-
-	// Required flags
-	if err := rootCmd.MarkPersistentFlagRequired("metadata-key"); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
 }
 
 // initConfig reads in config file and ENV variables if set.
