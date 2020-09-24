@@ -58,10 +58,12 @@ func init() {
 	servicedirectoryCmd.Flags().StringVar(&gcloudProject, "project", "", "gcloud project name")
 	servicedirectoryCmd.Flags().StringVar(&gcloudRegion, "region", "", "gcloud region location. Example: us-west2")
 	servicedirectoryCmd.Flags().StringVar(&gcloudServAccount, "service-account", "", "path to the gcloud service account. Example: ./service-account.json")
+	servicedirectoryCmd.Flags().StringVar(&metadataKey, "metadata-key", "", "name of the metadata key to look for")
 
 	servicedirectoryCmd.MarkFlagRequired("project")
 	servicedirectoryCmd.MarkFlagRequired("region")
 	servicedirectoryCmd.MarkFlagRequired("service-account")
+	servicedirectoryCmd.MarkFlagRequired("metadata-key")
 }
 
 func runServiceDirectory(cmd *cobra.Command, args []string) {
