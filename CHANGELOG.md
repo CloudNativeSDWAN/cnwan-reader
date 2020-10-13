@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] (2020-09-24)
+## [0.3.0] (2020-09-24)
 
 ### Added
 
@@ -34,14 +34,14 @@ error in `version`.
 - `COPYRIGHT` file, as all files created by the CN-WAN Reader `OWNERS` already
 contain a copyright notice on top of them.
 
-## [1.1.1] (2020-09-04)
+## [0.2.1] (2020-09-04)
 
 ### Fixed
 
 - A concurrency issue preventing the program from receiving events while still
 waiting for adaptor to replying is fixed.
 
-## [1.1.0] (2020-09-02)
+## [0.2.0] (2020-09-02)
 
 ### Changed
 
@@ -55,13 +55,13 @@ thus not checked by the project anymore
 
 - Readme: improve description on commands.
 
-## [1.0.1] (2020-08-13)
+## [0.1.1] (2020-08-13)
 
 ### Fixed
 
 - Trailing slashes are automatically removed from `--adaptor-api`
 
-## [1.0.0] (2020-08-12)
+## [0.1.0] (2020-08-12)
 
 ### Added
 
