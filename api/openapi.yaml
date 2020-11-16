@@ -144,8 +144,6 @@ components:
           metadata:
           - value: uhd-video
             key: profile
-          - value: uhd-video
-            key: profile
           address: 131.37.88.10
           port: 8080
           name: customers-endpoint
@@ -168,8 +166,6 @@ components:
       description: The subject of this event
       example:
         metadata:
-        - value: uhd-video
-          key: profile
         - value: uhd-video
           key: profile
         address: 131.37.88.10
