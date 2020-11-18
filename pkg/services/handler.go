@@ -29,7 +29,7 @@ import (
 )
 
 // Handler is in charge of handling services, i.e. sending them to endpoints
-// specified by CNWAN Reader OpenAPI's specification.
+// specified by CN-WAN Reader OpenAPI's specification.
 type Handler interface {
 	// Send these events to an external handler.
 	Send(services []openapi.Event) error

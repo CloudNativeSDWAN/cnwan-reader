@@ -15,9 +15,9 @@
 // All rights reserved.
 
 /*
- * CNWAN Reader API
+ * CN-WAN Reader API
  *
- * The CNWAN Reader implements the [service discovery](https://en.wikipedia.org/wiki/Service_discovery) pattern by connecting to a service registry and observing changes in registered services/endpoints. Detected changes are then processed and sent as events to the API endpoints defined below.  Events are **sent** to the following endpoints, thus any program interested in receiving them must generate the *server* code from this OpenAPI specification and define their own logic in the generated code.  By default, the CNWAN Reader expects the server that will receive events to operate on port `80` and receive events on `/cnwan/events`, but if your server uses a different port/endpoint you can override this value on the generated server code with the one your server is using. Once done, when launching the CNWAN Reader specify the correct endpoint by providing it as a command line argument, e.g. with `--adaptor-api localhost:9909` events will be sent on `localhost:9909/events`, and with `--adaptor-api example.com/another/path` events will be sent to `example.com/another/path/events`.  As a final note, please take in mind that this specification can also serve as a reference/guide for the creation of an adaptor.   As a matter of fact, your adaptor can even provided its own OpenAPI which includes the endpoints described here with different descriptions and different meanings for the response codes, or it can even include other endpoints as well. But as long as formats, returned response code and the endpoints of this specification match the ones on your adaptor's specification, compatibility with CNWAN Reader is guaranteed.
+ * The CN-WAN Reader implements the [service discovery](https://en.wikipedia.org/wiki/Service_discovery) pattern by connecting to a service registry and observing changes in registered services/endpoints. Detected changes are then processed and sent as events to the API endpoints defined below.  Events are **sent** to the following endpoints, thus any program interested in receiving them must generate the *server* code from this OpenAPI specification and define their own logic in the generated code.  By default, the CN-WAN Reader expects the server that will receive events to operate on port `80` and receive events on `/cnwan/events`, but if your server uses a different port/endpoint you can override this value on the generated server code with the one your server is using. Once done, when launching the CN-WAN Reader specify the correct endpoint by providing it as a command line argument, e.g. with `--adaptor-api localhost:9909` events will be sent on `localhost:9909/events`, and with `--adaptor-api example.com/another/path` events will be sent to `example.com/another/path/events`.  As a final note, please take in mind that this specification can also serve as a reference/guide for the creation of an adaptor.   As a matter of fact, your adaptor can even provided its own OpenAPI which includes the endpoints described here with different descriptions and different meanings for the response codes, or it can even include other endpoints as well. But as long as formats, returned response code and the endpoints of this specification match the ones on your adaptor's specification, compatibility with CN-WAN Reader is guaranteed.
  *
  * API version: 1.0.0 beta
  * Contact: cnwan@cisco.com
@@ -57,7 +57,7 @@ var (
 	xmlCheck  = regexp.MustCompile(`(?i:(?:application|text)/xml)`)
 )
 
-// APIClient manages communication with the CNWAN Reader API API v1.0.0 beta
+// APIClient manages communication with the CN-WAN Reader API API v1.0.0 beta
 // In most cases there should be only one, shared, APIClient.
 type APIClient struct {
 	cfg    *Configuration

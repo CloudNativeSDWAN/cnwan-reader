@@ -2,17 +2,17 @@ openapi: 3.0.1
 info:
   contact:
     email: cnwan@cisco.com
-  description: "The CNWAN Reader implements the [service discovery](https://en.wikipedia.org/wiki/Service_discovery)\n\
+  description: "The CN-WAN Reader implements the [service discovery](https://en.wikipedia.org/wiki/Service_discovery)\n\
     pattern by connecting to a service registry and observing changes in\nregistered\
     \ services/endpoints. Detected changes are then processed and sent\nas events\
     \ to the API endpoints defined below.\n\nEvents are **sent** to the following\
     \ endpoints, thus any program interested\nin receiving them must generate the\
     \ *server* code from this OpenAPI\nspecification and define their own logic in\
-    \ the generated code.\n\nBy default, the CNWAN Reader expects the server that\
+    \ the generated code.\n\nBy default, the CN-WAN Reader expects the server that\
     \ will receive events\nto operate on port `80` and receive events on `/cnwan/events`,\
     \ but if your\nserver uses a different port/endpoint you can override this value\
     \ on the\ngenerated server code with the one your server is using.\nOnce done,\
-    \ when launching the CNWAN Reader specify the correct endpoint by\nproviding it\
+    \ when launching the CN-WAN Reader specify the correct endpoint by\nproviding it\
     \ as a command line argument, e.g. with\n`--adaptor-api localhost:9909` events\
     \ will be sent on\n`localhost:9909/events`, and with `--adaptor-api example.com/another/path`\n\
     events will be sent to `example.com/another/path/events`.\n\nAs a final note,\
@@ -22,15 +22,15 @@ info:
     \ descriptions and\ndifferent meanings for the response codes, or it can even\
     \ include other\nendpoints as well. But as long as formats, returned response\
     \ code and the\nendpoints of this specification match the ones on your adaptor's\n\
-    specification, compatibility with CNWAN Reader is guaranteed."
+    specification, compatibility with CN-WAN Reader is guaranteed."
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   termsOfService: github.com/CloudNativeSDWAN/cnwan-reader/blob/master/LICENSE
-  title: CNWAN Reader API
+  title: CN-WAN Reader API
   version: 1.0.0 beta
 externalDocs:
-  description: Find out more about the CNWAN Reader
+  description: Find out more about the CN-WAN Reader
   url: github.com/CloudNativeSDWAN/cnwan-reader
 servers:
 - url: http://localhost/cnwan
@@ -97,7 +97,7 @@ paths:
           description: One or more resources have not been processed successfully.
             A list of errors is provided.
         "404":
-          description: Not found, most probably the `--adaptor-api` argument in CNWAN
+          description: Not found, most probably the `--adaptor-api` argument in CN-WAN
             Reader is misconfigured.
         "500":
           content:
@@ -195,14 +195,14 @@ components:
       type: object
     Metadata:
       description: The metadata observed. The list only includes the ones that have
-        been included in the command line arguments of the CNWAN Reader.
+        been included in the command line arguments of the CN-WAN Reader.
       example:
         value: uhd-video
         key: profile
       properties:
         key:
           description: The name of the key in the metadata, if present in the object.
-            Included only if required as argument in the CNWAN Reader.
+            Included only if required as argument in the CN-WAN Reader.
           example: profile
           type: string
         value:

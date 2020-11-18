@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing to CNWAN Reader.  
+Thank you for your interest in contributing to CN-WAN Reader.
 Please make sure you read the full code of conduct before making any
 contribution.
 
@@ -25,9 +25,9 @@ Request.
 
 ## Code of Conduct
 
-All participants of CNWAN Reader are expected to abide by our Code of Conduct,
+All participants of CN-WAN Reader are expected to abide by our Code of Conduct,
 both online and during in-person events that are hosted and/or associated
-with CNWAN Reader.
+with CN-WAN Reader.
 
 ### Our Pledge
 

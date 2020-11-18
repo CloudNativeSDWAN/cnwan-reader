@@ -33,7 +33,7 @@ const (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the running version",
-	Long: `Version prints the version of the running instance of CNWAN Reader.
+	Long: `Version prints the version of the running instance of CN-WAN Reader.
 	
 The message displayed will contain information about the MAJOR version, the
 MINOR version and the git version.

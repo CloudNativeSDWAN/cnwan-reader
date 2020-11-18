@@ -31,7 +31,7 @@ error in `version`.
 
 ### Removed
 
-- `COPYRIGHT` file, as all files created by the CNWAN Reader `OWNERS` already
+- `COPYRIGHT` file, as all files created by the CN-WAN Reader `OWNERS` already
 contain a copyright notice on top of them.
 
 ## [1.1.1] (2020-09-04)

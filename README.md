@@ -1,12 +1,12 @@
-# CNWAN Reader
+# CN-WAN Reader
 
-CNWAN Reader watches a service registry for changes and sends events to an
+CN-WAN Reader watches a service registry for changes and sends events to an
 external handler for processing.
 
-The CNWAN Reader is part of the Cloud Native SD-WAN (CNWAN) project.
-Please check the [CNWAN documentation](https://github.com/CloudNativeSDWAN/cnwan-docs)
+The CN-WAN Reader is part of the Cloud Native SD-WAN (CN-WAN) project.
+Please check the [CN-WAN documentation](https://github.com/CloudNativeSDWAN/cnwan-docs)
 for the general project overview and architecture.
-You can contact the CNWAN team at [cnwan@cisco.com](mailto:cnwan@cisco.com).
+You can contact the CN-WAN team at [cnwan@cisco.com](mailto:cnwan@cisco.com).
 
 ## Table of contents
 
@@ -17,7 +17,7 @@ You can contact the CNWAN team at [cnwan@cisco.com](mailto:cnwan@cisco.com).
   * [Clone the Project](#clone-the-project)
   * [Run as a Docker Container](#run-as-a-docker-container)
 * [Usage](#usage)
-  * [CNWAN Adaptor](#cnwan-adaptor)
+  * [CN-WAN Adaptor](#cnwan-adaptor)
   * [Metadata Key](#metadata-key)
   * [Service Directory](#service-directory)
   * [Binary Example](#binary-example)
@@ -30,7 +30,7 @@ You can contact the CNWAN team at [cnwan@cisco.com](mailto:cnwan@cisco.com).
 
 ## Overview
 
-The CNWAN Reader makes use of the [service discovery](https://en.wikipedia.org/wiki/Service_discovery)
+The CN-WAN Reader makes use of the [service discovery](https://en.wikipedia.org/wiki/Service_discovery)
 pattern by connecting to a service registry and observing changes in published
 services/endpoints. Detected changes are then processed and sent as events to
 an *adaptor*, which can be created following the `OpenAPI` specification
@@ -41,7 +41,7 @@ Please follow this readme to know more about *OpenAPI*, *Adaptors* and
 
 ## Supported Service Registries
 
-Currently, the CNWAN Reader can discover services/endpoints published to
+Currently, the CN-WAN Reader can discover services/endpoints published to
 Google Cloud's [Service directory](https://cloud.google.com/service-directory).
 
 In order to connect correctly, a
@@ -218,12 +218,12 @@ program as a binary, i.e. when installed through `go get` or cloned.
 The last section, [Docker Usage](#docker-usage) is only for users running the
 program as a Docker container.
 
-### CNWAN Adaptor
+### CN-WAN Adaptor
 
-*Adaptors* are external handlers that will receive the events sent by the CNWAN
+*Adaptors* are external handlers that will receive the events sent by the CN-WAN
 Reader and process them.
 
-By default, CNWAN Reader sends data to `localhost:80/cnwan/events`, so it
+By default, CN-WAN Reader sends data to `localhost:80/cnwan/events`, so it
 expects adaptors to provide a server listening on `localhost:80/cnwan`.  
 In case you have a different endpoint or already have a server listening on
 another host:port or just prefer to use another prefix path - or none at all,
@@ -237,17 +237,17 @@ For example:
 
 Events will be now sent to `localhost:5588/my/path/events`.  
 As an example of no prefix path, `--adaptor-api localhost:8080` will instruct
-the CNWAN Reader to send events on `localhost:8080/events` instead of
+the CN-WAN Reader to send events on `localhost:8080/events` instead of
 `localhost:8080/cnwan/events`. If a port is not provided, `80` will be used
 as default.
 
 Please follow [OpenAPI Specification](#openapi-specification) to learn more
 about adaptors and [Example](#example) for a complete usage example that
-includes a CNWAN Adaptor endpoint as well.
+includes a CN-WAN Adaptor endpoint as well.
 
 ### Metadata Key
 
-The CNWAN Reader only reads services that have the provided metadata key.
+The CN-WAN Reader only reads services that have the provided metadata key.
 
 For example, the following flag
 
@@ -279,7 +279,7 @@ If you are running it as a Docker container, follow
 
 ### Binary Example
 
-In the following example, the CNWAN Reader watches changes in
+In the following example, the CN-WAN Reader watches changes in
 Google Cloud Service Directory with the following requirements:
 
 * The *allowed* services have at least the `key-name` key in their metadata
@@ -354,14 +354,14 @@ servicedirectory \
 
 ## OpenAPI Specification
 
-The CNWAN Reader acts as a *client*, sending detected changes in form of
+The CN-WAN Reader acts as a *client*, sending detected changes in form of
 events to an external handler - an *Adaptor* - for processing. Therefore, any
 program interested in receiving and processing these events must generate the
 *server* code starting from the OpenAPI specification, or you can just
 implement the appropriate endpoint in your already existing server.
 
 The specification, along with documentation on what you need to implement
-and what data is sent by the CNWAN Reader, is included in this repository
+and what data is sent by the CN-WAN Reader, is included in this repository
 at this [link](./api/README.md).
 
 To learn more about OpenAPI please take a look at [this repository](https://github.com/OAI/OpenAPI-Specification).  
@@ -387,4 +387,4 @@ Before starting, please make sure you know and agree to our [Code of conduct](./
 
 ## License
 
-CNWAN Reader is released under the Apache 2.0 license. See [LICENSE](./LICENSE)
+CN-WAN Reader is released under the Apache 2.0 license. See [LICENSE](./LICENSE)

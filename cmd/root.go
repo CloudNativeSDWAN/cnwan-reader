@@ -36,8 +36,8 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "cnwan-reader",
-	Short: "CNWAN Reader observes changes in metadata in a service registry.",
-	Long: `CNWAN Reader connects to a service registry and 
+	Short: "CN-WAN Reader observes changes in metadata in a service registry.",
+	Long: `CN-WAN Reader connects to a service registry and 
 observes changes about registered services, delivering found events to a
 a separate handler for processing.`,
 }
