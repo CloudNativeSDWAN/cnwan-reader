@@ -18,12 +18,14 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
 	"github.com/rs/zerolog"
 	l "github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -31,6 +33,8 @@ var (
 	interval    int
 	metadataKey string
 	endpoint    string
+	configFile  string
+	config      *Config
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -57,10 +61,17 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "whether to log debug lines")
 	rootCmd.PersistentFlags().IntVarP(&interval, "interval", "i", 5, "number of seconds between two consecutive polls")
 	rootCmd.PersistentFlags().StringVar(&endpoint, "adaptor-api", "localhost/cnwan", "the api, in forrm of host:port/path, where the events will be sent to. Look at the documentation to learn more about this.")
+	rootCmd.PersistentFlags().StringVar(&configFile, "config-file", "", "path to the configuration file, if any")
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	if len(configFile) != 0 {
+		loadConfigFile(configFile)
+
+		// TODO: parse the config file
+	}
+
 	// -- Configure logger
 	l.Logger = l.Output(zerolog.ConsoleWriter{
 		Out: os.Stdout,
@@ -74,6 +85,27 @@ func initConfig() {
 
 		return zerolog.InfoLevel
 	}())
+}
+
+func loadConfigFile(filePath string) {
+	yamlFile, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Println("error:", configFile, "was not found")
+			os.Exit(1)
+		}
+
+		fmt.Println("error:", err)
+		os.Exit(1)
+	}
+
+	var conf Config
+	if err := yaml.Unmarshal(yamlFile, &conf); err != nil {
+		fmt.Println("error while unmarshalling configuration file:", err)
+		os.Exit(1)
+	}
+
+	config = &conf
 }
 
 func sanitizeAdaptorEndpoint(endp string) string {
