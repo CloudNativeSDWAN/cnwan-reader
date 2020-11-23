@@ -18,6 +18,14 @@
 // the CLI.
 package cmd
 
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+
+	"gopkg.in/yaml.v2"
+)
+
 // Config contains the configuration of the program
 type Config struct {
 	// DebugMode specifies whether to log debug or not
@@ -57,4 +65,65 @@ type ServiceDirectoryConfig struct {
 	Region string `yaml:"region"`
 	// ServiceAccountPath is the path of the service account JSON
 	ServiceAccountPath string `yaml:"serviceAccountPath"`
+}
+
+func parseConfigFile(filePath string) *Config {
+	yamlFile, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logger.Fatal().Str("conf", filePath).Msg("file was not found")
+			return nil // un-necessary, but just for clarity
+		}
+
+		logger.Fatal().Err(err).Str("conf", filePath).Msg("could not open this file")
+		return nil
+	}
+
+	var conf Config
+	if err := yaml.Unmarshal(yamlFile, &conf); err != nil {
+		logger.Fatal().Err(err).Str("conf", filePath).Msg("error while unmarshaling config file")
+		return nil
+	}
+
+	// Set up persistent flags first
+	debugMode = conf.DebugMode
+
+	switch keys := len(conf.MetadataKeys); {
+	case keys == 0:
+		logger.Fatal().Msg("no metadata keys have been provided: please provide at least one")
+		return nil
+	case keys > 1:
+		// TODO: support this on next versions
+		logger.Warn().Msg("watching multiple keys is not supported yet: only first one will be watched")
+		fallthrough
+	default:
+		metadataKey = conf.MetadataKeys[0]
+	}
+
+	if conf.Adaptor != nil {
+		host := conf.Adaptor.Host
+		if len(host) == 0 {
+			logger.Info().Str("default-host", "localhost").Msg("adaptor host not provided, using default...")
+			host = "localhost"
+		}
+		port := conf.Adaptor.Port
+		if port <= 0 {
+			if port < 0 {
+				logger.Error().Int32("provided", port).Int32("default", 80).Msg("invalid adaptor port provided, using default...")
+			} else {
+				logger.Info().Str("default-host", "localhost").Msg("adaptor host not provided, using default...")
+			}
+			port = 80
+		}
+
+		endpoint = sanitizeAdaptorEndpoint(fmt.Sprintf("%s:%d", host, port))
+	}
+
+	// TODO: check other service registries as well
+	srConf := conf.ServiceRegistry
+	if srConf != nil && srConf.GCPServiceDirectory != nil {
+		parseServiceDirectoryConf(srConf.GCPServiceDirectory)
+	}
+
+	return &conf
 }
