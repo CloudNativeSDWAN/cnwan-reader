@@ -1,11 +1,11 @@
+# CNWAN Reader
+
 ![GitHub](https://img.shields.io/github/license/CloudNativeSDWAN/cnwan-reader)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/CloudNativeSDWAN/cnwan-reader)
 ![OpenAPI version](https://img.shields.io/badge/OpenAPI-3.0.1-green)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/CloudNativeSDWAN/cnwan-reader/Build)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/CloudNativeSDWAN/cnwan-reader)
-![Docker Image Version (latest by date)](https://img.shields.io/docker/v/cnwan/cnwan-reader?label=docker%20version)
-
-# CNWAN Reader
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/CloudNativeSDWAN/cnwan-reader)
+![Docker Image Version (latest semver)](https://img.shields.io/docker/v/cnwan/cnwan-reader?label=docker%20image%20version)
 
 CN-WAN Reader watches a service registry for changes and sends events to an
 external handler for processing.

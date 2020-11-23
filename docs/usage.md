@@ -14,7 +14,8 @@ You should pre-pend `path/to/cnwan-reader` before these commands, or
 * [CNWAN Adaptor](#cnwan-adaptor)
 * [Metadata Key](#metadata-key)
 * [Service Directory](#service-directory)
-* [Binary Example](#binary-example)
+* [Configration File](#configuration-file)
+* [Example](#example)
 
 ### CNWAN Adaptor
 
@@ -85,7 +86,38 @@ Finally, please make sure your service account has *at least* role
 `roles/servicedirectory.viewer`. We suggest you create service account just for
 the CNWAN Reader with the aforementioned role.
 
-## Binary Example
+## Configuration File
+
+Optionally, a configuration file can be used, which can be used by providing
+its path with `--conf`. A [configuration model](../examples/config/config.yaml)
+is there for you on `examples/config`.
+
+The fields in the YAML file map to each CLI flag specified in the sections
+above and therefore you won't need to include them if you want to use the
+default value, i.e. if `pollInterval` is not there, then the default value
+`5` will be used, as specified in `--help`.
+
+In the provided yaml example, we entered `example.com` to specify that the
+adaptor is not running in the same machine as the reader, and that,
+if not present, the value for `host` will be `localhost` and `80` for port.
+If the latter case applies to you, you can just go ahead and omit `adaptor`
+field entirely: here the fields are complete to show you a full example with
+all present fields.
+
+`metadataKeys` is a list of metadata keys that need to be watched for, ignoring
+the oned that don't have them, although keep in mind that, as of now, only one
+is supported: if you write multiple metadata keys to watch, only the first one
+will be kept.
+
+Under `serviceRegistry` you will need to specify the service registry that you
+want to be polled/watched.
+
+Finally, remember that CLI flags will **override** any options defined in the
+configuration file: for example, if your configuration file includes
+`pollInterval: 25` but launch the program with `--interval 50`, the
+former will be completely ignored.
+
+## Examples
 
 In the following example, the CNWAN Reader watches changes in
 Google Cloud Service Directory with the following requirements:
@@ -103,10 +135,33 @@ the `--adaptor-api` flag, but here it is included for clarity.
 
 ```bash
 cnwan-reader sd \
---service-account path/to/creds/serv-acc.json \
+--service-account /path/to/the/service-account.json \
 --project my-project \
 --region us-west2 \
 --metadata-key cnwan.io/traffic-profile \
 --adaptor-api localhost/cnwan/events \
 --interval 10
+```
+
+You can also use a configuration file to do that. Set the configuration file
+as:
+
+```yaml
+adaptor:
+  host: localhost
+  port: 80
+metadataKeys:
+  - cnwan.io/traffic-profile
+serviceRegistry:
+  gcpServiceDirectory:
+    pollInterval: 10
+    region: us-west2
+    projectID: my-project
+    serviceAccountPath: /path/to/the/service-account.json
+```
+
+Execute the following command:
+
+```bash
+cnwan-reader --conf /path/to/configuration/file.yaml
 ```
