@@ -25,8 +25,11 @@ import (
 var shortVer bool
 
 const (
-	longVersion  = "MAJOR=1; MINOR=2; GIT-VERSION=v.1.2.0"
-	shortVersion = "v1.2.0"
+	majorVersion    = 0
+	minorVersion    = 3
+	patchVersion    = 0
+	shortVerPattern = "v%d.%d.%d"
+	longVerPattern  = "MAJOR=%d; MINOR=%d; GIT-VERSION=%s"
 )
 
 // versionCmd represents the version command
@@ -41,11 +44,13 @@ MINOR version and the git version.
 When run with --short a shorter and human-readable version will be printed
 instead`,
 	Run: func(cmd *cobra.Command, args []string) {
+		shortVersion := fmt.Sprintf(shortVerPattern, majorVersion, minorVersion, patchVersion)
 		if shortVer {
 			fmt.Println(shortVersion)
 			return
 		}
 
+		longVersion := fmt.Sprintf(longVerPattern, majorVersion, minorVersion, shortVersion)
 		fmt.Println(longVersion)
 	},
 }
