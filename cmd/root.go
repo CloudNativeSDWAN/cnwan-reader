@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/cmd/poll"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/cmd/watch"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/configuration"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -38,6 +39,7 @@ var (
 )
 
 // rootCmd represents the base command when called without any subcommands
+
 var rootCmd = &cobra.Command{
 	TraverseChildren: true,
 	Use:              "cnwan-reader",
@@ -72,7 +74,6 @@ a separate handler for processing.`,
 
 		logger.Fatal().Msg("no service registry provided")
 		cmd.Usage()
-		return
 	},
 }
 
@@ -95,6 +96,7 @@ func init() {
 
 	// Add the poll command
 	rootCmd.AddCommand(poll.GetPollCommand())
+	rootCmd.AddCommand(watch.GetWatchCommand())
 }
 
 func initConfig() {
