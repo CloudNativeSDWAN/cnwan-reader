@@ -17,6 +17,7 @@
 package watch
 
 import (
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/cmd/watch/etcd"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +36,7 @@ service registry. Not all service registries work this way: include --help or
 	}
 
 	// Subcommands
-	// TODO: add subcommands
+	cmd.AddCommand(etcd.GetEtcdCommand())
 
 	return cmd
 }
