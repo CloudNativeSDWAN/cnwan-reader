@@ -49,8 +49,29 @@ a separate handler for processing.`,
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(args)
-		os.Exit(1)
+		if len(configFilePath) == 0 {
+			logger.Fatal().Msg("no command nor configuration provided")
+			cmd.Usage()
+			return
+		}
+		if config == nil {
+			logger.Fatal().Msg("no configuration provided")
+			cmd.Usage()
+			return
+		}
+
+		if config.ServiceRegistry == nil || (config.ServiceRegistry != nil && config.ServiceRegistry.GCPServiceDirectory == nil) {
+			logger.Fatal().Msg("no service registry provided")
+			cmd.Usage()
+			return
+		}
+
+		// Note that this generally is not the correct way of doing this
+		// because id does not honor (p)preruns and/or (p)postruns, but we
+		// remove any prerun from servicedirectory command and so, this is
+		// fine.
+		// Nonetheless, I will think of a new technique for next versions.
+		servicedirectoryCmd.Run(servicedirectoryCmd, args)
 	},
 }
 
@@ -72,7 +93,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&configFilePath, "conf", "", "path to the configuration file, if any")
 }
 
-// initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	// -- Configure logger
 	log.Logger = log.Output(zerolog.ConsoleWriter{
