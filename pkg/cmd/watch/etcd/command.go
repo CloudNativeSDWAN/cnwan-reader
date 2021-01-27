@@ -18,10 +18,14 @@ package etcd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
+	"time"
 
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/queue"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/services"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"go.etcd.io/etcd/clientv3"
@@ -74,9 +78,42 @@ func GetEtcdCommand() *cobra.Command {
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, canc := context.WithCancel(context.Background())
+			defer watcher.cli.Close()
+			defer canc()
 
-			// TODO: do something with the client
-			_, _ = watcher, ctx
+			// Get the adaptor endpoint
+			fromFlag, _ := cmd.Flags().GetString("adaptor-api")
+			adaptorEndpoint, err := sanitizeLocalhost(fromFlag, os.Getenv("MODE"))
+			if err != nil {
+				log.Err(err).Str("adaptor-endpoint", fromFlag).Msg("adaptor endpoint doesn't seem valid")
+				return
+			}
+
+			// Get create events
+			log.Info().Msg("getting current state of service registry from etcd...")
+			currStateCtx, currStateCanc := context.WithTimeout(ctx, time.Minute)
+			initialEvents, err := watcher.getCurrentState(currStateCtx, "create")
+			currStateCanc()
+			if err != nil {
+				if errors.Is(err, context.DeadlineExceeded) {
+					log.Err(err).Int("seconds", 60).Msg("timeout expired while getting current state (did you specify the correct --endpoints ?)")
+					return
+				}
+
+				log.Err(err).Msg("error while retrieving current state from etcd")
+				return
+			}
+
+			// Get the queue and send the events
+			servsHandler, err := services.NewHandler(ctx, adaptorEndpoint)
+			if err != nil {
+				log.Err(err).Msg("error while trying to connect to service directory")
+				return
+			}
+			watcher.Queue = queue.New(ctx, servsHandler)
+			if len(initialEvents) > 0 {
+				go watcher.Enqueue(initialEvents)
+			}
 
 			// Graceful shutdown
 			sig := make(chan os.Signal, 1)
