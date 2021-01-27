@@ -17,11 +17,45 @@
 package etcd
 
 import (
+	"os"
+
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
 
+var (
+	log zerolog.Logger
+)
+
+func init() {
+	output := zerolog.ConsoleWriter{Out: os.Stdout}
+	log = zerolog.New(output).With().Timestamp().Logger()
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+}
+
 // GetEtcdCommand returns the etcd command
 func GetEtcdCommand() *cobra.Command {
-	// TODO: implement me
-	return nil
+	// TODO: on next version this will probably be changed and adopt some
+	// other programming pattern, maybe with a factory.
+	cmd := &cobra.Command{
+		Use:     etcdUse,
+		Short:   etcdShort,
+		Long:    etcdLong,
+		Example: etcdExample,
+		PreRun: func(cmd *cobra.Command, _ []string) {
+			// TODO: implement me
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			// TODO: implement me
+		},
+	}
+
+	// Flags
+	cmd.Flags().StringSlice("endpoints", []string{}, "endpoints where to connect to")
+	cmd.Flags().String("username", "", "the username to authenticate as")
+	cmd.Flags().String("password", "", "the password to use for this user")
+	cmd.Flags().String("prefix", "/", "the prefix to include for all objects")
+	cmd.Flags().StringSlice("metadata-keys", []string{}, "the metadata keys to look for")
+
+	return cmd
 }
