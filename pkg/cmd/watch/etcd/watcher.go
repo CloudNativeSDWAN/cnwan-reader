@@ -16,7 +16,21 @@
 
 package etcd
 
+import (
+	"context"
+
+	"go.etcd.io/etcd/clientv3"
+)
+
 type etcdWatcher struct {
 	options *Options
 	keys    []string
+	cli     *clientv3.Client
+	kv      clientv3.KV
+	watcher clientv3.Watcher
+}
+
+func (e *etcdWatcher) Watch(ctx context.Context) {
+	log.Info().Msg("starting...")
+	// TODO: implement me
 }
