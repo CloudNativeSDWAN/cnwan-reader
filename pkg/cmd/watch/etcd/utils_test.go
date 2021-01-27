@@ -1,0 +1,245 @@
+// Copyright © 2021 Cisco
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// All rights reserved.
+
+package etcd
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestSanitizeLocalhost(t *testing.T) {
+	a := assert.New(t)
+
+	cases := []struct {
+		host   string
+		mode   string
+		expRes string
+		expErr error
+	}{
+		{
+			host:   "http://",
+			expErr: fmt.Errorf("whatever"),
+		},
+		{
+			host:   "https://",
+			expErr: fmt.Errorf("whatever"),
+		},
+		{
+			host:   "non-localhost",
+			expRes: "non-localhost",
+		},
+		{
+			host:   "localhost/whatever",
+			expRes: "localhost/whatever",
+		},
+		{
+			host:   "localhost/whatever",
+			mode:   "docker",
+			expRes: "host.docker.internal/whatever",
+		},
+		{
+			host:   "localhost/whatever",
+			mode:   "whatever",
+			expRes: "localhost/whatever",
+		},
+	}
+
+	for i, currCase := range cases {
+		res, err := sanitizeLocalhost(currCase.host, currCase.mode)
+
+		if !a.Equal(currCase.expRes, res) {
+			a.FailNow(fmt.Sprintf("case %d failed", i))
+		}
+
+		if currCase.expErr != nil && !a.Error(err) {
+			a.FailNow(fmt.Sprintf("case %d failed", i))
+		}
+	}
+}
+
+func TestParseEndpointsFromFlags(t *testing.T) {
+	a := assert.New(t)
+
+	cases := []struct {
+		endpoints []string
+		expRes    []Endpoint
+	}{
+		{
+			endpoints: []string{},
+		},
+		{
+			endpoints: []string{
+				"localhost",
+				"localhost:4455",
+				"example.com:444:333:2212",
+				"https://",
+				"http://",
+				"localhost:4455",
+			},
+			expRes: []Endpoint{
+				{
+					Host: "localhost",
+					Port: defaultPort,
+				},
+				{
+					Host: "localhost",
+					Port: 4455,
+				},
+			},
+		},
+	}
+
+	for i, currCase := range cases {
+		res := parseEndpointsFromFlags(currCase.endpoints)
+
+		if !a.Equal(currCase.expRes, res) {
+			a.FailNow("case failed", "case", i)
+		}
+	}
+}
+
+func TestParseFlags(t *testing.T) {
+	a := assert.New(t)
+
+	cases := []struct {
+		cmd    *cobra.Command
+		expRes *Options
+		expErr error
+	}{
+		{
+			cmd: func() *cobra.Command {
+				return GetEtcdCommand()
+			}(),
+			expErr: fmt.Errorf("no metadata keys provided"),
+		},
+		{
+			cmd: func() *cobra.Command {
+				c := GetEtcdCommand()
+				c.SetArgs([]string{"--metadata-keys=whatever,whatever2"})
+				c.PreRun = func(*cobra.Command, []string) {}
+				c.Run = func(*cobra.Command, []string) {}
+				c.Execute()
+				return c
+			}(),
+			expRes: &Options{Endpoints: []Endpoint{{Host: defaultHost, Port: defaultPort}}, Prefix: "/", targetKeys: []string{"whatever"}},
+		},
+		{
+			cmd: func() *cobra.Command {
+				c := GetEtcdCommand()
+				c.SetArgs([]string{"--metadata-keys=whatever", "--username=whatever"})
+				c.PreRun = func(*cobra.Command, []string) {}
+				c.Run = func(*cobra.Command, []string) {}
+				c.Execute()
+				return c
+			}(),
+			expErr: fmt.Errorf("username set but no password provided"),
+		},
+		{
+			cmd: func() *cobra.Command {
+				c := GetEtcdCommand()
+				c.SetArgs([]string{"--metadata-keys=whatever", "--password=whatever"})
+				c.PreRun = func(*cobra.Command, []string) {}
+				c.Run = func(*cobra.Command, []string) {}
+				c.Execute()
+				return c
+			}(),
+			expErr: fmt.Errorf("password set but no username provided"),
+		},
+		{
+			cmd: func() *cobra.Command {
+				c := GetEtcdCommand()
+				c.SetArgs([]string{
+					"--metadata-keys=whatever",
+					"--username=whatever",
+					"--password=whatever",
+					"--prefix=/service-registry/",
+					"--endpoints=localhost:3344,example.com:5544",
+				})
+				c.PreRun = func(*cobra.Command, []string) {}
+				c.Run = func(*cobra.Command, []string) {}
+				c.Execute()
+				return c
+			}(),
+			expRes: &Options{
+				Endpoints: []Endpoint{
+					{Host: "localhost", Port: 3344},
+					{Host: "example.com", Port: 5544},
+				},
+				Prefix: "/service-registry/",
+				Credentials: &Credentials{
+					Username: "whatever", Password: "whatever",
+				},
+				targetKeys: []string{"whatever"},
+			},
+		},
+	}
+
+	failed := func(i int) {
+		a.FailNow("case failed", fmt.Sprintf("case %d", i))
+	}
+
+	for i, currCase := range cases {
+		res, err := parseFlags(currCase.cmd)
+		er := currCase.expRes
+		if !a.Equal(currCase.expErr, err) {
+			failed(i)
+		}
+
+		if !a.Equal(er, res) {
+			failed(i)
+		}
+	}
+}
+
+func TestParsePrefix(t *testing.T) {
+	a := assert.New(t)
+	empty := ""
+	onlySlash := "/"
+	multipleSlashes := "///test///"
+
+	cases := []struct {
+		prefix string
+		expRes string
+	}{
+		{
+			expRes: "/",
+		},
+		{
+			prefix: empty,
+			expRes: "/",
+		},
+		{
+			prefix: onlySlash,
+			expRes: "/",
+		},
+		{
+			prefix: multipleSlashes,
+			expRes: "/test/",
+		},
+	}
+
+	for i, currCase := range cases {
+		res := parsePrefix(currCase.prefix)
+		errRes := a.Equal(currCase.expRes, res)
+		if !errRes {
+			a.FailNow(fmt.Sprintf("case %d failed", i))
+		}
+	}
+}

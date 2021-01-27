@@ -17,6 +17,7 @@
 package etcd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/rs/zerolog"
@@ -37,21 +38,34 @@ func init() {
 func GetEtcdCommand() *cobra.Command {
 	// TODO: on next version this will probably be changed and adopt some
 	// other programming pattern, maybe with a factory.
+	watcher := &etcdWatcher{
+		options: &Options{},
+	}
+
 	cmd := &cobra.Command{
 		Use:     etcdUse,
 		Short:   etcdShort,
 		Long:    etcdLong,
 		Example: etcdExample,
 		PreRun: func(cmd *cobra.Command, _ []string) {
-			// TODO: implement me
+			options, err := parseFlags(cmd)
+			if err != nil {
+				log.Fatal().Err(err).Msg("error while parsing commands, check usage with --help")
+				return
+			}
+
+			watcher.options = options
+
+			// TODO: load client
 		},
-		Run: func(cmd *cobra.Command, args []string) {
-			// TODO: implement me
-		},
+		Run: func(cmd *cobra.Command, args []string) {},
 	}
 
 	// Flags
-	cmd.Flags().StringSlice("endpoints", []string{}, "endpoints where to connect to")
+	cmd.Flags().StringSlice("endpoints", func() []string {
+		sanitized, _ := sanitizeLocalhost(defaultHost, os.Getenv("MODE"))
+		return []string{fmt.Sprintf("%s:%d", sanitized, defaultPort)}
+	}(), "endpoints where to connect to")
 	cmd.Flags().String("username", "", "the username to authenticate as")
 	cmd.Flags().String("password", "", "the password to use for this user")
 	cmd.Flags().String("prefix", "/", "the prefix to include for all objects")
