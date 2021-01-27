@@ -3,17 +3,18 @@ module github.com/CloudNativeSDWAN/cnwan-reader
 go 1.14
 
 require (
-	cloud.google.com/go v0.63.0
+	cloud.google.com/go v0.72.0
+	github.com/CloudNativeSDWAN/cnwan-operator v0.3.0
 	github.com/aws/aws-sdk-go v1.37.2
 	github.com/rs/zerolog v1.19.0
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.6.1
 	go.etcd.io/etcd v0.0.0-20191023171146-3cf2f69b5738
-	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	google.golang.org/api v0.30.0
+	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5
+	google.golang.org/api v0.36.0
 	google.golang.org/genproto v0.0.0-20201210142538-e3217bee35cc
-	google.golang.org/grpc v1.34.0 // indirect
-	gopkg.in/yaml.v2 v2.2.8
+	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 )
 
 replace (
