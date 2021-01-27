@@ -17,11 +17,15 @@
 package etcd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/clientv3/namespace"
 )
 
 var (
@@ -35,12 +39,11 @@ func init() {
 }
 
 // GetEtcdCommand returns the etcd command
+//
+// TODO: on next version this will probably be changed and adopt some
+// other programming pattern, maybe with a factory.
 func GetEtcdCommand() *cobra.Command {
-	// TODO: on next version this will probably be changed and adopt some
-	// other programming pattern, maybe with a factory.
-	watcher := &etcdWatcher{
-		options: &Options{},
-	}
+	var watcher *etcdWatcher
 
 	cmd := &cobra.Command{
 		Use:     etcdUse,
@@ -48,17 +51,47 @@ func GetEtcdCommand() *cobra.Command {
 		Long:    etcdLong,
 		Example: etcdExample,
 		PreRun: func(cmd *cobra.Command, _ []string) {
+			// Parse the flags
 			options, err := parseFlags(cmd)
 			if err != nil {
 				log.Fatal().Err(err).Msg("error while parsing commands, check usage with --help")
 				return
 			}
 
-			watcher.options = options
+			// Get the etcd clients
+			cli, err := clientv3.New(getEtcdClientConfig(options))
+			if err != nil {
+				log.Fatal().Err(err).Msg("error while establishing connection to etcd client")
+				return
+			}
 
-			// TODO: load client
+			watcher = &etcdWatcher{
+				options: options,
+				cli:     cli,
+				kv:      namespace.NewKV(cli.KV, options.Prefix),
+				watcher: namespace.NewWatcher(cli.Watcher, options.Prefix),
+			}
 		},
-		Run: func(cmd *cobra.Command, args []string) {},
+		Run: func(cmd *cobra.Command, args []string) {
+			ctx, canc := context.WithCancel(context.Background())
+
+			// TODO: do something with the client
+			_, _ = watcher, ctx
+
+			// Graceful shutdown
+			sig := make(chan os.Signal, 1)
+			signal.Notify(sig, os.Interrupt)
+
+			<-sig
+			fmt.Println()
+			log.Info().Msg("exit requested")
+
+			// Cancel the context and wait for objects that use it to receive
+			// the stop command
+			canc()
+
+			log.Info().Msg("good bye!")
+		},
 	}
 
 	// Flags

@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"go.etcd.io/etcd/clientv3"
 )
 
 func sanitizeLocalhost(host string, mode string) (string, error) {
@@ -130,6 +131,25 @@ func parseFlags(cmd *cobra.Command) (*Options, error) {
 	opts.Prefix = parsePrefix(prefix)
 
 	return opts, nil
+}
+
+func getEtcdClientConfig(opts *Options) clientv3.Config {
+	endps := []string{}
+
+	for _, endp := range opts.Endpoints {
+		endps = append(endps, fmt.Sprintf("%s:%d", endp.Host, endp.Port))
+	}
+	cfg := clientv3.Config{
+		Endpoints: endps,
+	}
+
+	if opts.Credentials != nil {
+		cfg.Username = opts.Credentials.Username
+		cfg.Password = opts.Credentials.Password
+	}
+
+	// TODO: support for TLS authentication
+	return cfg
 }
 
 func parsePrefix(prefix string) string {
