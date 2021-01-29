@@ -271,3 +271,189 @@ func TestParseEndpointAndCreateEvent(t *testing.T) {
 		}
 	}
 }
+
+// func TestProcessCreateEvent(t *testing.T) {
+// 	a := assert.New(t)
+// 	ns := &opsr.Namespace{
+// 		Name:     "ns",
+// 		Metadata: map[string]string{"whatever": "whatever"},
+// 	}
+// 	nsKey, _ := opetcd.KeyFromServiceRegistryObject(ns)
+// 	nsValue, _ := yaml.Marshal(ns)
+// 	srv := &opsr.Service{
+// 		Name:     "srv",
+// 		NsName:   ns.Name,
+// 		Metadata: map[string]string{"yes": "yes"},
+// 	}
+// 	okEndp := &opsr.Endpoint{
+// 		Name:     "ok-endp",
+// 		ServName: srv.Name,
+// 		NsName:   ns.Name,
+// 		Address:  "10.10.10.10",
+// 		Metadata: map[string]string{"whatever": "whatever"},
+// 	}
+// 	okEndpKey, _ := opetcd.KeyFromServiceRegistryObject(okEndp)
+// 	okEndpVal, _ := yaml.Marshal(okEndp)
+
+// 	cases := []struct {
+// 		kv         *mvccpb.KeyValue
+// 		getServ    func(nsName, servName string) (*opsr.Service, error)
+// 		targetKeys []string
+// 		expRes     map[string]*openapi.Event
+// 	}{
+// 		{
+// 			kv: &mvccpb.KeyValue{
+// 				Key:   []byte(nsKey.String()),
+// 				Value: nsValue,
+// 			},
+// 		},
+// 		{
+// 			kv: &mvccpb.KeyValue{
+// 				Key: []byte(okEndpKey.String()),
+// 			},
+// 		},
+// 		{
+// 			kv: &mvccpb.KeyValue{
+// 				Key:   []byte(okEndpKey.String()),
+// 				Value: []byte("invalid"),
+// 			},
+// 		},
+// 		{
+// 			kv: &mvccpb.KeyValue{
+// 				Key:   []byte(okEndpKey.String()),
+// 				Value: okEndpVal,
+// 			},
+// 			getServ: func(nsName, servName string) (*opsr.Service, error) {
+// 				return nil, opsr.ErrNotFound
+// 			},
+// 		},
+// 		{
+// 			kv: &mvccpb.KeyValue{
+// 				Key:   []byte(okEndpKey.String()),
+// 				Value: okEndpVal,
+// 			},
+// 			getServ: func(nsName, servName string) (*opsr.Service, error) {
+// 				return srv, nil
+// 			},
+// 			targetKeys: []string{"no"},
+// 			expRes:     map[string]*openapi.Event{},
+// 		},
+// 		{
+// 			kv: &mvccpb.KeyValue{
+// 				Key:   []byte(okEndpKey.String()),
+// 				Value: okEndpVal,
+// 			},
+// 			getServ: func(nsName, servName string) (*opsr.Service, error) {
+// 				return srv, nil
+// 			},
+// 			targetKeys: []string{"yes"},
+// 			expRes: map[string]*openapi.Event{
+// 				okEndpKey.String(): {
+// 					Event: "create",
+// 					Service: openapi.Service{
+// 						Name:    okEndpKey.String(),
+// 						Address: okEndp.Address,
+// 						Port:    80,
+// 						Metadata: []openapi.Metadata{
+// 							{Key: "yes", Value: "yes"},
+// 						},
+// 					},
+// 				},
+// 			},
+// 		},
+// 	}
+
+// 	fail := func(i int) {
+// 		a.FailNow("case failed", fmt.Sprintf("case %d", i))
+// 	}
+// 	for i, currCase := range cases {
+// 		e := &etcdWatcher{
+// 			options: &Options{
+// 				targetKeys: currCase.targetKeys,
+// 			},
+// 			servreg: &fakeSR{
+// 				_getServ: currCase.getServ,
+// 			},
+// 		}
+
+// 		res := e.processCreateEvent(currCase.kv)
+// 		if !a.Equal(currCase.expRes, res) {
+// 			fail(i)
+// 		}
+// 	}
+// }
+
+// func TestProcessCreateEvent(t *testing.T) {
+// 	a := assert.New(t)
+// 	ns := &opsr.Namespace{
+// 		Name:     "ns",
+// 		Metadata: map[string]string{"whatever": "whatever"},
+// 	}
+// 	nsKey, _ := opetcd.KeyFromServiceRegistryObject(ns)
+// 	nsValue, _ := yaml.Marshal(ns)
+// 	srv := &opsr.Service{
+// 		Name:     "srv",
+// 		NsName:   ns.Name,
+// 		Metadata: map[string]string{"yes": "yes"},
+// 	}
+// 	okEndp := &opsr.Endpoint{
+// 		Name:     "ok-endp",
+// 		ServName: srv.Name,
+// 		NsName:   ns.Name,
+// 		Address:  "10.10.10.10",
+// 		Metadata: map[string]string{"whatever": "whatever"},
+// 	}
+// 	okEndpKey, _ := opetcd.KeyFromServiceRegistryObject(okEndp)
+// 	okEndpVal, _ := yaml.Marshal(okEndp)
+
+// 	cases := []struct {
+// 		kv         *mvccpb.KeyValue
+// 		getServ    func(nsName, servName string) (*opsr.Service, error)
+// 		targetKeys []string
+// 		expRes     map[string]*openapi.Event
+// 	}{
+
+// 		{
+// 			kv: &mvccpb.KeyValue{
+// 				Key:   []byte(okEndpKey.String()),
+// 				Value: okEndpVal,
+// 			},
+// 			getServ: func(nsName, servName string) (*opsr.Service, error) {
+// 				return srv, nil
+// 			},
+// 			targetKeys: []string{"yes"},
+// 			expRes: map[string]*openapi.Event{
+// 				okEndpKey.String(): {
+// 					Event: "create",
+// 					Service: openapi.Service{
+// 						Name:    okEndpKey.String(),
+// 						Address: okEndp.Address,
+// 						Port:    80,
+// 						Metadata: []openapi.Metadata{
+// 							{Key: "yes", Value: "yes"},
+// 						},
+// 					},
+// 				},
+// 			},
+// 		},
+// 	}
+
+// 	fail := func(i int) {
+// 		a.FailNow("case failed", fmt.Sprintf("case %d", i))
+// 	}
+// 	for i, currCase := range cases {
+// 		e := &etcdWatcher{
+// 			options: &Options{
+// 				targetKeys: currCase.targetKeys,
+// 			},
+// 			servreg: &fakeSR{
+// 				_getServ: currCase.getServ,
+// 			},
+// 		}
+
+// 		res := e.processDeleteEvent(currCase.kv)
+// 		if !a.Equal(currCase.expRes, res) {
+// 			fail(i)
+// 		}
+// 	}
+// }
