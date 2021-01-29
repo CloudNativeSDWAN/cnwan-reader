@@ -41,7 +41,7 @@ type etcdWatcher struct {
 
 func (e *etcdWatcher) Watch(ctx context.Context) {
 	log.Info().Msg(e.options.Prefix)
-	wchan := e.watcher.Watch(ctx, "", clientv3.WithPrefix())
+	wchan := e.watcher.Watch(ctx, "", clientv3.WithPrefix(), clientv3.WithPrevKV())
 	defer e.watcher.Close()
 
 	for wresp := range wchan {
@@ -52,7 +52,12 @@ func (e *etcdWatcher) Watch(ctx context.Context) {
 
 			switch evType := ev.Type; {
 			case evType == mvccpb.DELETE:
-				// TODO: process delete event
+				if key.ObjectType() == opetcd.EndpointObject && ev.PrevKv != nil && ev.PrevKv.Value != nil {
+					log.Info().Str("key", key.String()).Msg("detected deleted endpoint")
+					if endpEv, err := e.parseEndpointAndCreateEvent(ev.PrevKv, "delete"); err == nil && endpEv != nil {
+						eventsToSend = map[string]*openapi.Event{key.String(): endpEv}
+					}
+				}
 			case evType == mvccpb.PUT && ev.IsCreate():
 				if key.ObjectType() == opetcd.EndpointObject && ev.Kv.Value != nil {
 					log.Info().Str("key", key.String()).Msg("new endpoint detected")
