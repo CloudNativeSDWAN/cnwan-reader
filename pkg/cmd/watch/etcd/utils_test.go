@@ -20,8 +20,11 @@ import (
 	"fmt"
 	"testing"
 
+	opsr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v2"
 )
 
 func TestSanitizeLocalhost(t *testing.T) {
@@ -240,6 +243,188 @@ func TestParsePrefix(t *testing.T) {
 		errRes := a.Equal(currCase.expRes, res)
 		if !errRes {
 			a.FailNow(fmt.Sprintf("case %d failed", i))
+		}
+	}
+}
+
+func TestValidateEndpoint(t *testing.T) {
+	a := assert.New(t)
+	anyErr := fmt.Errorf("any")
+
+	cases := []struct {
+		arg    []byte
+		expRes *opsr.Endpoint
+		expErr error
+	}{
+		{
+			expErr: fmt.Errorf("no value provided"),
+		},
+		{
+			arg:    []byte("invalid"),
+			expErr: anyErr,
+		},
+		{
+			arg: func() []byte {
+				ep := &opsr.Endpoint{
+					Name: "ep",
+				}
+				epval, _ := yaml.Marshal(ep)
+				return epval
+			}(),
+			expErr: opsr.ErrNsNameNotProvided,
+		},
+		{
+			arg: func() []byte {
+				ep := &opsr.Endpoint{
+					Name:     "ep",
+					ServName: "srv",
+					NsName:   "ns",
+				}
+				epval, _ := yaml.Marshal(ep)
+				return epval
+			}(),
+			expErr: fmt.Errorf("endpoint has no address"),
+		},
+		{
+			arg: func() []byte {
+				ep := &opsr.Endpoint{
+					Name:     "ep",
+					ServName: "srv",
+					NsName:   "ns",
+					Address:  "10.10.10.10",
+					Metadata: map[string]string{"protocol": "tcp"},
+				}
+				epval, _ := yaml.Marshal(ep)
+				return epval
+			}(),
+			expRes: &opsr.Endpoint{
+				Name:     "ep",
+				ServName: "srv",
+				NsName:   "ns",
+				Address:  "10.10.10.10",
+				Port:     80,
+				Metadata: map[string]string{"protocol": "tcp"},
+			},
+		},
+		{
+			arg: func() []byte {
+				ep := &opsr.Endpoint{
+					Name:     "ep",
+					ServName: "srv",
+					NsName:   "ns",
+					Address:  "10.10.10.10",
+					Port:     9596,
+					Metadata: map[string]string{"protocol": "tcp"},
+				}
+				epval, _ := yaml.Marshal(ep)
+				return epval
+			}(),
+			expRes: &opsr.Endpoint{
+				Name:     "ep",
+				ServName: "srv",
+				NsName:   "ns",
+				Address:  "10.10.10.10",
+				Port:     9596,
+				Metadata: map[string]string{"protocol": "tcp"},
+			},
+		},
+	}
+
+	fail := func(i int) {
+		a.FailNow("case failed", fmt.Sprintf("case %d", i))
+	}
+	for i, currCase := range cases {
+		res, err := validateEndpointFromEtcd(currCase.arg)
+
+		if !a.Equal(currCase.expRes, res) {
+			fail(i)
+		}
+
+		if currCase.expErr == anyErr {
+			if !a.Error(err) {
+				fail(i)
+			}
+
+		} else {
+			if !a.Equal(currCase.expErr, err) {
+				fail(i)
+			}
+		}
+	}
+}
+
+func TestCreateOpenapiEvent(t *testing.T) {
+	a := assert.New(t)
+
+	endp := &opsr.Endpoint{
+		Name:     "endp",
+		ServName: "srv",
+		NsName:   "ns",
+		Address:  "10.10.10.10",
+		Port:     9696,
+		Metadata: map[string]string{
+			"test":    "test",
+			"another": "another",
+		},
+	}
+	srv := &opsr.Service{
+		Name:   "srv",
+		NsName: "ns",
+		Metadata: map[string]string{
+			"name": "srv",
+			"srv":  "yes",
+		},
+	}
+
+	expRes := &openapi.Event{
+		Event: "create",
+		Service: openapi.Service{
+			Name:    endp.Name,
+			Address: endp.Address,
+			Port:    endp.Port,
+			Metadata: []openapi.Metadata{
+				{Key: "name", Value: "srv"},
+				{Key: "srv", Value: "yes"},
+			},
+		},
+	}
+
+	res := createOpenapiEvent(endp, srv, "create")
+	a.Equal(expRes, res)
+}
+
+func TestMapContainsKeys(t *testing.T) {
+	a := assert.New(t)
+	m := map[string]string{
+		"key1": "val1",
+		"key2": "val2",
+		"key3": "val3",
+	}
+	cases := []struct {
+		targets []string
+		expRes  bool
+	}{
+		{
+			targets: []string{"key1"},
+			expRes:  true,
+		},
+		{
+			targets: []string{"key1", "key2", "key4"},
+			expRes:  false,
+		},
+		{
+			targets: []string{"key1", "key2", "key3", "key4"},
+			expRes:  false,
+		},
+	}
+
+	fail := func(i int) {
+		a.FailNow("case failed", fmt.Sprintf("case %d", i))
+	}
+	for i, currCase := range cases {
+		res := mapContainsKeys(m, currCase.targets)
+		if !a.Equal(currCase.expRes, res) {
+			fail(i)
 		}
 	}
 }

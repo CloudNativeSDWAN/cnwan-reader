@@ -166,3 +166,108 @@ func TestGetCurrentState(t *testing.T) {
 		}
 	}
 }
+
+func TestParseEndpointAndCreateEvent(t *testing.T) {
+	a := assert.New(t)
+	ns := &opsr.Namespace{
+		Name:     "ns",
+		Metadata: map[string]string{"whatever": "whatever"},
+	}
+	srv := &opsr.Service{
+		Name:     "srv",
+		NsName:   ns.Name,
+		Metadata: map[string]string{"yes": "yes"},
+	}
+	okEndp := &opsr.Endpoint{
+		Name:     "ok-endp",
+		ServName: srv.Name,
+		NsName:   ns.Name,
+		Address:  "10.10.10.10",
+		Port:     9394,
+		Metadata: map[string]string{"whatever": "whatever"},
+	}
+	okEndpKey, _ := opetcd.KeyFromServiceRegistryObject(okEndp)
+	okEndpVal, _ := yaml.Marshal(okEndp)
+
+	cases := []struct {
+		kv        *mvccpb.KeyValue
+		eventName string
+		getServ   func(nsName, servName string) (*opsr.Service, error)
+
+		expRes *openapi.Event
+		expErr error
+	}{
+		{
+			kv: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv", "endp").String()),
+				Value: func() []byte {
+					endp := opsr.Endpoint{}
+					ep, _ := yaml.Marshal(endp)
+					return ep
+				}(),
+			},
+			expErr: opsr.ErrNsNameNotProvided,
+		},
+		{
+			kv: &mvccpb.KeyValue{
+				Key:   []byte(okEndpKey.String()),
+				Value: okEndpVal,
+			},
+			getServ: func(nsName, servName string) (*opsr.Service, error) {
+				return nil, opsr.ErrNotFound
+			},
+			expErr: opsr.ErrNotFound,
+		},
+		{
+			kv: &mvccpb.KeyValue{
+				Key:   []byte(okEndpKey.String()),
+				Value: okEndpVal,
+			},
+			getServ: func(nsName, servName string) (*opsr.Service, error) {
+				return &opsr.Service{
+					Name:     "name",
+					NsName:   "nsname",
+					Metadata: map[string]string{"no": "no"},
+				}, nil
+			},
+		},
+		{
+			kv: &mvccpb.KeyValue{
+				Key:   []byte(okEndp.Name),
+				Value: okEndpVal,
+			},
+			eventName: "just-to-see-if-its-this",
+			getServ: func(nsName, servName string) (*opsr.Service, error) {
+				return srv, nil
+			},
+			expRes: &openapi.Event{
+				Event: "just-to-see-if-its-this",
+				Service: openapi.Service{
+					Name:     okEndp.Name,
+					Address:  okEndp.Address,
+					Port:     okEndp.Port,
+					Metadata: []openapi.Metadata{{Key: "yes", Value: "yes"}},
+				},
+			},
+		},
+	}
+
+	fail := func(i int) {
+		a.FailNow("case failed", fmt.Sprintf("case %d", i))
+	}
+	for i, currCase := range cases {
+		e := &etcdWatcher{
+			options: &Options{
+				targetKeys: []string{"yes"},
+			},
+			servreg: &fakeSR{
+				_getServ: currCase.getServ,
+			},
+		}
+
+		res, err := e.parseEndpointAndCreateEvent(currCase.kv, currCase.eventName)
+		if !a.Equal(currCase.expRes, res) || !a.Equal(currCase.expErr, err) {
+			fail(i)
+		}
+	}
+}
