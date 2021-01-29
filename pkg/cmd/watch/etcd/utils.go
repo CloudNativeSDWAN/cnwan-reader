@@ -22,8 +22,12 @@ import (
 	"strconv"
 	"strings"
 
+	opsr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	opetcd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
 	"github.com/spf13/cobra"
 	"go.etcd.io/etcd/clientv3"
+	"gopkg.in/yaml.v3"
 )
 
 func sanitizeLocalhost(host string, mode string) (string, error) {
@@ -160,4 +164,61 @@ func parsePrefix(prefix string) string {
 	// Remove all slashes to prevent having values like //key////
 	pref := strings.Trim(prefix, "/")
 	return fmt.Sprintf("/%s/", pref)
+}
+
+func validateEndpointFromEtcd(bytesVal []byte) (*opsr.Endpoint, error) {
+	if len(bytesVal) == 0 {
+		return nil, fmt.Errorf("no value provided")
+	}
+
+	var endp opsr.Endpoint
+	if err := yaml.Unmarshal(bytesVal, &endp); err != nil {
+		return nil, err
+	}
+
+	// Some validations, in case user did something manually
+	if _, err := opetcd.KeyFromServiceRegistryObject(&endp); err != nil {
+		return nil, err
+	}
+	if len(endp.Address) == 0 {
+		return nil, fmt.Errorf("endpoint has no address")
+	}
+
+	if endp.Port <= 0 {
+		endp.Port = 80
+	}
+
+	return &endp, nil
+}
+
+func createOpenapiEvent(endp *opsr.Endpoint, srv *opsr.Service, eventType string) *openapi.Event {
+	event := openapi.Event{
+		Event: eventType,
+		Service: openapi.Service{
+			Name:     endp.Name,
+			Address:  endp.Address,
+			Port:     endp.Port,
+			Metadata: []openapi.Metadata{},
+		},
+	}
+
+	for mtdKey, mtdVal := range srv.Metadata {
+		event.Service.Metadata = append(event.Service.Metadata, openapi.Metadata{Key: mtdKey, Value: mtdVal})
+	}
+
+	return &event
+}
+
+func mapContainsKeys(subject map[string]string, targets []string) bool {
+	// TODO: this will be useful for other commands as well, so it will be
+	// put in a sort of utils package
+
+	foundKeys := 0
+	for _, targetKey := range targets {
+		if _, exists := subject[targetKey]; exists {
+			foundKeys++
+		}
+	}
+
+	return foundKeys == len(targets)
 }

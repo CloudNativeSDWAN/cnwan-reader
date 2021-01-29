@@ -15,6 +15,7 @@ require (
 	google.golang.org/genproto v0.0.0-20201210142538-e3217bee35cc
 	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
+	k8s.io/api v0.18.6
 )
 
 replace (

@@ -25,6 +25,7 @@ import (
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/queue"
 	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/mvcc/mvccpb"
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,11 +36,66 @@ type etcdWatcher struct {
 	kv      clientv3.KV
 	watcher clientv3.Watcher
 	queue.Queue
+	servreg opsr.ServiceRegistry
 }
 
 func (e *etcdWatcher) Watch(ctx context.Context) {
-	log.Info().Msg("starting...")
-	// TODO: implement me
+	log.Info().Msg(e.options.Prefix)
+	wchan := e.watcher.Watch(ctx, "", clientv3.WithPrefix())
+	defer e.watcher.Close()
+
+	for wresp := range wchan {
+		for _, ev := range wresp.Events {
+
+			key := opetcd.KeyFromString(string(ev.Kv.Key))
+			var eventsToSend map[string]*openapi.Event
+
+			switch evType := ev.Type; {
+			case evType == mvccpb.DELETE:
+				// TODO: process delete event
+			case evType == mvccpb.PUT && ev.IsCreate():
+				if key.ObjectType() == opetcd.EndpointObject && ev.Kv.Value != nil {
+					log.Info().Str("key", key.String()).Msg("new endpoint detected")
+					if endpEv, err := e.parseEndpointAndCreateEvent(ev.PrevKv, "create"); err == nil && endpEv != nil {
+						eventsToSend = map[string]*openapi.Event{key.String(): endpEv}
+					}
+				}
+			case evType == mvccpb.PUT && ev.IsModify():
+				// TODO: process modify event
+			}
+
+			if e.Queue != nil && len(eventsToSend) > 0 {
+				go e.Queue.Enqueue(eventsToSend)
+			}
+		}
+	}
+
+	log.Info().Msg("finished watching")
+}
+
+func (e *etcdWatcher) parseEndpointAndCreateEvent(kvpair *mvccpb.KeyValue, eventName string) (*openapi.Event, error) {
+	key := opetcd.KeyFromString(string(kvpair.Key))
+	l := log.With().Str("key", key.String()).Str("event", eventName).Logger()
+
+	endp, err := validateEndpointFromEtcd(kvpair.Value)
+	if err != nil {
+		l.Err(err).Msg("endpoint is not valid: skipping...")
+		return nil, err
+	}
+
+	srv, err := e.servreg.GetServ(endp.NsName, endp.ServName)
+	if err != nil {
+		l.Err(err).Msg("error while trying to get parent service: skipping endpoint...")
+		return nil, err
+	}
+
+	if !mapContainsKeys(srv.Metadata, e.options.targetKeys) {
+		l.Info().Msg("endpoint's parent service doesn't have target metadata keys: skipping...")
+		return nil, nil
+	}
+
+	event := createOpenapiEvent(endp, srv, eventName)
+	return event, nil
 }
 
 func (e *etcdWatcher) getCurrentState(ctx context.Context, event string) (map[string]*openapi.Event, error) {

@@ -24,6 +24,7 @@ import (
 	"os/signal"
 	"time"
 
+	opetcd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/queue"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/services"
 	"github.com/rs/zerolog"
@@ -69,17 +70,19 @@ func GetEtcdCommand() *cobra.Command {
 				return
 			}
 
+			sr, _ := opetcd.NewServiceRegistryWithEtcd(context.Background(), cli, &options.Prefix)
+
 			watcher = &etcdWatcher{
 				options: options,
 				cli:     cli,
 				kv:      namespace.NewKV(cli.KV, options.Prefix),
 				watcher: namespace.NewWatcher(cli.Watcher, options.Prefix),
+				servreg: sr,
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, canc := context.WithCancel(context.Background())
+
 			defer watcher.cli.Close()
-			defer canc()
 
 			// Get the adaptor endpoint
 			fromFlag, _ := cmd.Flags().GetString("adaptor-api")
@@ -91,7 +94,7 @@ func GetEtcdCommand() *cobra.Command {
 
 			// Get create events
 			log.Info().Msg("getting current state of service registry from etcd...")
-			currStateCtx, currStateCanc := context.WithTimeout(ctx, time.Minute)
+			currStateCtx, currStateCanc := context.WithTimeout(context.Background(), time.Minute)
 			initialEvents, err := watcher.getCurrentState(currStateCtx, "create")
 			currStateCanc()
 			if err != nil {
@@ -104,16 +107,26 @@ func GetEtcdCommand() *cobra.Command {
 				return
 			}
 
+			ctx, canc := context.WithCancel(context.Background())
+			exitChan := make(chan bool)
+
 			// Get the queue and send the events
 			servsHandler, err := services.NewHandler(ctx, adaptorEndpoint)
 			if err != nil {
 				log.Err(err).Msg("error while trying to connect to service directory")
+				canc()
 				return
 			}
 			watcher.Queue = queue.New(ctx, servsHandler)
 			if len(initialEvents) > 0 {
 				go watcher.Enqueue(initialEvents)
 			}
+
+			go func() {
+				log.Info().Msg("watching for changes...")
+				watcher.Watch(ctx)
+				close(exitChan)
+			}()
 
 			// Graceful shutdown
 			sig := make(chan os.Signal, 1)
@@ -126,6 +139,7 @@ func GetEtcdCommand() *cobra.Command {
 			// Cancel the context and wait for objects that use it to receive
 			// the stop command
 			canc()
+			<-exitChan
 
 			log.Info().Msg("good bye!")
 		},
