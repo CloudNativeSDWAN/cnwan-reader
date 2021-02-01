@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.72.0
 	github.com/CloudNativeSDWAN/cnwan-operator v0.3.0
 	github.com/aws/aws-sdk-go v1.37.2
+	github.com/google/go-cmp v0.5.4
 	github.com/rs/zerolog v1.19.0
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.6.1
