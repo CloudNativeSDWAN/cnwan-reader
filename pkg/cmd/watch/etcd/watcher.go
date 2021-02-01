@@ -24,6 +24,7 @@ import (
 	opetcd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/queue"
+	"github.com/google/go-cmp/cmp"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/mvcc/mvccpb"
 	"gopkg.in/yaml.v3"
@@ -66,7 +67,15 @@ func (e *etcdWatcher) Watch(ctx context.Context) {
 					}
 				}
 			case evType == mvccpb.PUT && ev.IsModify():
-				// TODO: process modify event
+				if key.ObjectType() == opetcd.EndpointObject {
+					log.Info().Str("key", key.String()).Msg("detected updated endpoint")
+					if endpEv, err := e.parseEndpointChange(ev.Kv, ev.PrevKv); err == nil && endpEv != nil {
+						eventsToSend = map[string]*openapi.Event{key.String(): endpEv}
+					}
+				}
+				if key.ObjectType() == opetcd.ServiceObject {
+					// TODO: parse service change
+				}
 			}
 
 			if e.Queue != nil && len(eventsToSend) > 0 {
@@ -101,6 +110,108 @@ func (e *etcdWatcher) parseEndpointAndCreateEvent(kvpair *mvccpb.KeyValue, event
 
 	event := createOpenapiEvent(endp, srv, eventName)
 	return event, nil
+}
+
+func (e *etcdWatcher) parseEndpointChange(now, prev *mvccpb.KeyValue) (*openapi.Event, error) {
+	l := log.With().Str("key", string(now.Key)).Str("event", "update").Logger()
+	var parsedPrev *opsr.Endpoint
+	var parsedNow *opsr.Endpoint
+	var nowErr error
+
+	if now.Value != nil {
+		_parsedNow, err := validateEndpointFromEtcd(now.Value)
+		if err == nil {
+			parsedNow = _parsedNow
+		} else {
+			nowErr = err
+		}
+	}
+	if prev.Value != nil {
+		_parsedPrev, err := validateEndpointFromEtcd(prev.Value)
+		if err == nil {
+			parsedPrev = _parsedPrev
+		}
+	}
+
+	if parsedNow == nil && parsedPrev == nil {
+		// Still invalid
+		l.Info().Err(nowErr).Msg("endpoint is still not valid, skipping...")
+		return nil, nil
+	}
+
+	// No need to check for error from keybuilder: if you're here it means
+	// that they are indeed valid.
+	var keyBuilder *opetcd.KeyBuilder
+	if parsedNow != nil {
+		keyBuilder, _ = opetcd.KeyFromServiceRegistryObject(parsedNow)
+	} else {
+		keyBuilder, _ = opetcd.KeyFromServiceRegistryObject(parsedPrev)
+	}
+
+	srv, err := e.servreg.GetServ(keyBuilder.GetNamespace(), keyBuilder.GetService())
+	if err != nil {
+		l.Err(err).Msg("error while retrieving parent service: skipping...")
+		return nil, err
+	}
+
+	if !mapContainsKeys(srv.Metadata, e.options.targetKeys) {
+		l.Info().Msg("endpoint's parent service doesn't have target metadata keys: skipping...")
+		return nil, nil
+	}
+
+	// TODO: on future versions, this will be removed, in favor of a
+	// simple map[string]string, the ones used by the operator
+	parsedMetadata := []openapi.Metadata{}
+	for key, val := range srv.Metadata {
+		parsedMetadata = append(parsedMetadata, openapi.Metadata{Key: key, Value: val})
+	}
+
+	// It is not valid now
+	if parsedNow == nil {
+		l.Warn().Err(nowErr).Msg("endpoint seems to be not valid anymore and must be deleted")
+		return &openapi.Event{
+			Event: "delete",
+			Service: openapi.Service{
+				Name:     parsedPrev.Name,
+				Address:  parsedPrev.Address,
+				Port:     parsedPrev.Port,
+				Metadata: parsedMetadata,
+			},
+		}, nil
+	}
+
+	// It was not valid before
+	if parsedPrev == nil {
+		l.Info().Msg("endpoint is now valid")
+		return &openapi.Event{
+			Event: "create",
+			Service: openapi.Service{
+				Name:     parsedNow.Name,
+				Address:  parsedNow.Address,
+				Port:     parsedNow.Port,
+				Metadata: parsedMetadata,
+			},
+		}, nil
+	}
+
+	// What changed?
+	parsedNow.Metadata = map[string]string{}
+	parsedPrev.Metadata = map[string]string{}
+	if !cmp.Equal(parsedNow, parsedPrev) {
+		l.Info().Msg("endpoint effectively changed")
+		return &openapi.Event{
+			Event: "update",
+			Service: openapi.Service{
+				Name:     parsedNow.Name,
+				Address:  parsedNow.Address,
+				Port:     parsedNow.Port,
+				Metadata: parsedMetadata,
+			},
+		}, nil
+	}
+
+	l.Info().Msg("no relevant changes detected: skipping...")
+	return nil, nil
 }
 
 func (e *etcdWatcher) getCurrentState(ctx context.Context, event string) (map[string]*openapi.Event, error) {
