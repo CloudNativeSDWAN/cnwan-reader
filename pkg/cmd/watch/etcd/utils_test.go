@@ -428,3 +428,48 @@ func TestMapContainsKeys(t *testing.T) {
 		}
 	}
 }
+
+func TestMapValuesChanged(t *testing.T) {
+	a := assert.New(t)
+	prev := map[string]string{
+		"key1": "val1",
+		"key2": "val2",
+		"key3": "val3",
+	}
+	cases := []struct {
+		now     map[string]string
+		targets []string
+		expRes  bool
+	}{
+		{
+			now:     prev,
+			targets: []string{"key1", "key2"},
+			expRes:  false,
+		},
+		{
+			now:     map[string]string{"key1": "new"},
+			targets: []string{"key1", "key2"},
+			expRes:  true,
+		},
+		{
+			now:     map[string]string{"key5": "val5"},
+			targets: []string{"key5"},
+			expRes:  false,
+		},
+		{
+			now:     map[string]string{"key5": "val5"},
+			targets: []string{"key1"},
+			expRes:  false,
+		},
+	}
+
+	fail := func(i int) {
+		a.FailNow("case failed", fmt.Sprintf("case %d", i))
+	}
+	for i, currCase := range cases {
+		res := mapValuesChanged(currCase.now, prev, currCase.targets)
+		if !a.Equal(currCase.expRes, res) {
+			fail(i)
+		}
+	}
+}

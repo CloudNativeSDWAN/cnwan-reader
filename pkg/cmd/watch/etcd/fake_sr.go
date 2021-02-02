@@ -22,7 +22,8 @@ import (
 )
 
 type fakeSR struct {
-	_getServ func(nsName, servName string) (*opsr.Service, error)
+	_getServ  func(nsName, servName string) (*opsr.Service, error)
+	_listEndp func(nsName, servName string) ([]*opsr.Endpoint, error)
 }
 
 func (f *fakeSR) GetNs(name string) (*opsr.Namespace, error) {
@@ -70,7 +71,7 @@ func (f *fakeSR) GetEndp(nsName, servName, endpName string) (*opsr.Endpoint, err
 }
 
 func (f *fakeSR) ListEndp(nsName, servName string) ([]*opsr.Endpoint, error) {
-	return nil, nil
+	return f._listEndp(nsName, servName)
 }
 
 func (f *fakeSR) CreateEndp(endp *opsr.Endpoint) (*opsr.Endpoint, error) {
