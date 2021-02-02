@@ -74,7 +74,10 @@ func (e *etcdWatcher) Watch(ctx context.Context) {
 					}
 				}
 				if key.ObjectType() == opetcd.ServiceObject {
-					// TODO: parse service change
+					log.Info().Str("key", key.String()).Msg("detected updated service")
+					if endpEv, err := e.parseServiceChange(ev.Kv, ev.PrevKv); err == nil && endpEv != nil {
+						eventsToSend = endpEv
+					}
 				}
 			}
 
@@ -83,8 +86,6 @@ func (e *etcdWatcher) Watch(ctx context.Context) {
 			}
 		}
 	}
-
-	log.Info().Msg("finished watching")
 }
 
 func (e *etcdWatcher) parseEndpointAndCreateEvent(kvpair *mvccpb.KeyValue, eventName string) (*openapi.Event, error) {
@@ -212,6 +213,88 @@ func (e *etcdWatcher) parseEndpointChange(now, prev *mvccpb.KeyValue) (*openapi.
 
 	l.Info().Msg("no relevant changes detected: skipping...")
 	return nil, nil
+}
+
+func (e *etcdWatcher) parseServiceChange(now, prev *mvccpb.KeyValue) (map[string]*openapi.Event, error) {
+	l := log.With().Str("key", string(now.Key)).Str("event", "update").Logger()
+	var parsedPrev *opsr.Service
+	var parsedNow *opsr.Service
+
+	if now.Value != nil {
+		_parsedNow, err := validateServiceFromEtcd(now.Value)
+		if err == nil {
+			parsedNow = _parsedNow
+		} else {
+			log.Err(err).Msg("service looks invalid")
+		}
+	}
+	if prev.Value != nil {
+		_parsedPrev, err := validateServiceFromEtcd(prev.Value)
+		if err == nil {
+			parsedPrev = _parsedPrev
+		} else {
+			log.Err(err).Msg("could not marshal previous service state")
+		}
+	}
+
+	if parsedNow == nil && parsedPrev == nil {
+		// This happens when user created stuff manually badly
+		l.Error().Msg("could not parse neither current nor previous version of this service: please check your service registry for invalid/inconsistent values ASAP")
+		return nil, nil
+	}
+
+	parsedMetadata := []openapi.Metadata{}
+	metadata := func() map[string]string {
+		if parsedNow != nil {
+			return parsedNow.Metadata
+		}
+
+		return parsedPrev.Metadata
+	}()
+	for key, val := range metadata {
+		parsedMetadata = append(parsedMetadata, openapi.Metadata{Key: key, Value: val})
+	}
+
+	hadTarget := parsedPrev != nil && mapContainsKeys(parsedPrev.Metadata, e.options.targetKeys)
+	hasTarget := parsedNow != nil && mapContainsKeys(parsedNow.Metadata, e.options.targetKeys)
+	srv := parsedNow
+	event := ""
+	switch hasTarget {
+	case false:
+		if !hadTarget {
+			log.Info().Msg("service doesn't have target keys and never had: skipping...")
+			return nil, nil
+		}
+		log.Info().Msg("service doesn't have target keys anymore")
+		event = "delete"
+		srv = parsedPrev
+	case true:
+		if !hadTarget {
+			log.Info().Msg("service now has target keys")
+			event = "create"
+		} else {
+			if !mapValuesChanged(parsedNow.Metadata, parsedPrev.Metadata, e.options.targetKeys) {
+				log.Info().Msg("no relevant changes found, skipping...")
+				return nil, nil
+			}
+			event = "update"
+		}
+	}
+
+	// if you're here, it means that there are indeed changes to be made.
+	endpList, err := e.servreg.ListEndp(srv.NsName, srv.Name)
+	if err != nil {
+		log.Err(err).Msg("could not get list of endpoints, skipping...")
+		return nil, err
+	}
+
+	events := map[string]*openapi.Event{}
+	for _, endp := range endpList {
+		key := opetcd.KeyFromNames(endp.NsName, endp.ServName, endp.Name)
+		events[key.String()] = createOpenapiEvent(endp, srv, event)
+	}
+
+	return events, nil
 }
 
 func (e *etcdWatcher) getCurrentState(ctx context.Context, event string) (map[string]*openapi.Event, error) {

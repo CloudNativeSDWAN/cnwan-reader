@@ -222,3 +222,43 @@ func mapContainsKeys(subject map[string]string, targets []string) bool {
 
 	return foundKeys == len(targets)
 }
+
+func mapValuesChanged(now, prev map[string]string, keys []string) bool {
+	// This function checks if values have changed but ONLY
+	// if they are changed. Other functions are used for that purpose
+	for _, key := range keys {
+		nowVal, nowExists := now[key]
+		if !nowExists {
+			continue
+		}
+
+		prevVal, prevExists := prev[key]
+		if !prevExists {
+			continue
+		}
+
+		if nowVal != prevVal {
+			return true
+		}
+	}
+
+	return false
+}
+
+func validateServiceFromEtcd(val []byte) (*opsr.Service, error) {
+	if len(val) == 0 {
+		return nil, fmt.Errorf("no value provided")
+	}
+
+	var srv opsr.Service
+	if err := yaml.Unmarshal(val, &srv); err != nil {
+		return nil, err
+	}
+
+	// Some validations, in case user did something manually
+	if _, err := opetcd.KeyFromServiceRegistryObject(&srv); err != nil {
+		return nil, err
+	}
+
+	return &srv, nil
+}

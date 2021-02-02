@@ -485,3 +485,367 @@ func TestParseEndpointChange(t *testing.T) {
 		}
 	}
 }
+
+func TestParseServiceChange(t *testing.T) {
+	a := assert.New(t)
+	srvNow := &opsr.Service{
+		Name:     "srv",
+		NsName:   "ns",
+		Metadata: map[string]string{"yes": "yes"},
+	}
+	srvPrev := &opsr.Service{
+		Name:     "srv",
+		NsName:   "ns",
+		Metadata: map[string]string{"yes": "yes-before"},
+	}
+	cases := []struct {
+		now  *mvccpb.KeyValue
+		prev *mvccpb.KeyValue
+
+		targets  []string
+		listEndp func(nsName, servName string) ([]*opsr.Endpoint, error)
+		expRes   map[string]*openapi.Event
+		expErr   error
+	}{
+		{
+			now: &mvccpb.KeyValue{
+				Key:   []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: []byte("invalid"),
+			},
+			prev: &mvccpb.KeyValue{
+				Key:   []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: []byte("invalid"),
+			},
+		},
+		{
+			now: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvNow)
+					return s
+				}(),
+			},
+			prev: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvNow)
+					return s
+				}(),
+			},
+			targets: []string{"no"},
+		},
+		{
+			now: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+			},
+			prev: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvNow)
+					return s
+				}(),
+			},
+			targets: []string{"yes"},
+			listEndp: func(nsName, servName string) ([]*opsr.Endpoint, error) {
+				return []*opsr.Endpoint{
+					{
+						Name: "endp1", ServName: "srv", NsName: "ns",
+						Address: "10.10.10.10", Port: 9090,
+						Metadata: map[string]string{"x": "y"},
+					},
+					{
+						Name: "endp2", ServName: "srv", NsName: "ns",
+						Address: "11.11.11.11", Port: 9191,
+						Metadata: map[string]string{"z": "w"},
+					},
+				}, nil
+			},
+			expRes: map[string]*openapi.Event{
+				opetcd.KeyFromNames("ns", "srv", "endp1").String(): {
+					Event: "delete",
+					Service: openapi.Service{Name: "endp1", Address: "10.10.10.10", Port: 9090,
+						Metadata: []openapi.Metadata{{Key: "yes", Value: "yes"}},
+					},
+				},
+				opetcd.KeyFromNames("ns", "srv", "endp2").String(): {
+					Event: "delete",
+					Service: openapi.Service{Name: "endp2", Address: "11.11.11.11", Port: 9191,
+						Metadata: []openapi.Metadata{{Key: "yes", Value: "yes"}},
+					},
+				},
+			},
+		},
+		{
+			now: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					srv := &opsr.Service{Name: "srv", NsName: "ns", Metadata: map[string]string{"no": "no"}}
+					s, _ := yaml.Marshal(srv)
+					return s
+				}(),
+			},
+			prev: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvNow)
+					return s
+				}(),
+			},
+			targets: []string{"yes"},
+			listEndp: func(nsName, servName string) ([]*opsr.Endpoint, error) {
+				return []*opsr.Endpoint{
+					{
+						Name: "endp1", ServName: "srv", NsName: "ns",
+						Address: "10.10.10.10", Port: 9090,
+						Metadata: map[string]string{"x": "y"},
+					},
+					{
+						Name: "endp2", ServName: "srv", NsName: "ns",
+						Address: "11.11.11.11", Port: 9191,
+						Metadata: map[string]string{"z": "w"},
+					},
+				}, nil
+			},
+			expRes: map[string]*openapi.Event{
+				opetcd.KeyFromNames("ns", "srv", "endp1").String(): {
+					Event: "delete",
+					Service: openapi.Service{Name: "endp1", Address: "10.10.10.10", Port: 9090,
+						Metadata: []openapi.Metadata{{Key: "yes", Value: "yes"}},
+					},
+				},
+				opetcd.KeyFromNames("ns", "srv", "endp2").String(): {
+					Event: "delete",
+					Service: openapi.Service{Name: "endp2", Address: "11.11.11.11", Port: 9191,
+						Metadata: []openapi.Metadata{{Key: "yes", Value: "yes"}},
+					},
+				},
+			},
+		},
+		{
+			now: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvNow)
+					return s
+				}(),
+			},
+			prev: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					srv := &opsr.Service{Name: "srv", NsName: "ns", Metadata: map[string]string{"no": "no"}}
+					s, _ := yaml.Marshal(srv)
+					return s
+				}(),
+			},
+			targets: []string{"yes"},
+			listEndp: func(nsName, servName string) ([]*opsr.Endpoint, error) {
+				return []*opsr.Endpoint{
+					{
+						Name: "endp1", ServName: "srv", NsName: "ns",
+						Address: "10.10.10.10", Port: 9090,
+						Metadata: map[string]string{"x": "y"},
+					},
+					{
+						Name: "endp2", ServName: "srv", NsName: "ns",
+						Address: "11.11.11.11", Port: 9191,
+						Metadata: map[string]string{"z": "w"},
+					},
+				}, nil
+			},
+			expRes: map[string]*openapi.Event{
+				opetcd.KeyFromNames("ns", "srv", "endp1").String(): {
+					Event: "create",
+					Service: openapi.Service{Name: "endp1", Address: "10.10.10.10", Port: 9090,
+						Metadata: []openapi.Metadata{{Key: "yes", Value: "yes"}},
+					},
+				},
+				opetcd.KeyFromNames("ns", "srv", "endp2").String(): {
+					Event: "create",
+					Service: openapi.Service{Name: "endp2", Address: "11.11.11.11", Port: 9191,
+						Metadata: []openapi.Metadata{{Key: "yes", Value: "yes"}},
+					},
+				},
+			},
+		},
+		{
+			now: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvNow)
+					return s
+				}(),
+			},
+			prev: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+			},
+			targets: []string{"yes"},
+			listEndp: func(nsName, servName string) ([]*opsr.Endpoint, error) {
+				return []*opsr.Endpoint{
+					{
+						Name: "endp1", ServName: "srv", NsName: "ns",
+						Address: "10.10.10.10", Port: 9090,
+						Metadata: map[string]string{"x": "y"},
+					},
+					{
+						Name: "endp2", ServName: "srv", NsName: "ns",
+						Address: "11.11.11.11", Port: 9191,
+						Metadata: map[string]string{"z": "w"},
+					},
+				}, nil
+			},
+			expRes: map[string]*openapi.Event{
+				opetcd.KeyFromNames("ns", "srv", "endp1").String(): {
+					Event: "create",
+					Service: openapi.Service{Name: "endp1", Address: "10.10.10.10", Port: 9090,
+						Metadata: []openapi.Metadata{{Key: "yes", Value: "yes"}},
+					},
+				},
+				opetcd.KeyFromNames("ns", "srv", "endp2").String(): {
+					Event: "create",
+					Service: openapi.Service{Name: "endp2", Address: "11.11.11.11", Port: 9191,
+						Metadata: []openapi.Metadata{{Key: "yes", Value: "yes"}},
+					},
+				},
+			},
+		},
+		{
+			now: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvNow)
+					return s
+				}(),
+			},
+			prev: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					srv := &opsr.Service{Name: "srv", NsName: "ns",
+						Metadata: map[string]string{"yes": "yes", "no": "no"}}
+					s, _ := yaml.Marshal(srv)
+					return s
+				}(),
+			},
+			targets: []string{"yes"},
+			listEndp: func(nsName, servName string) ([]*opsr.Endpoint, error) {
+				return []*opsr.Endpoint{
+					{
+						Name: "endp1", ServName: "srv", NsName: "ns",
+						Address: "10.10.10.10", Port: 9090,
+						Metadata: map[string]string{"x": "y"},
+					},
+					{
+						Name: "endp2", ServName: "srv", NsName: "ns",
+						Address: "11.11.11.11", Port: 9191,
+						Metadata: map[string]string{"z": "w"},
+					},
+				}, nil
+			},
+		},
+		{
+			now: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvNow)
+					return s
+				}(),
+			},
+			prev: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvPrev)
+					return s
+				}(),
+			},
+			targets: []string{"yes"},
+			listEndp: func(nsName, servName string) ([]*opsr.Endpoint, error) {
+				return []*opsr.Endpoint{
+					{
+						Name: "endp1", ServName: "srv", NsName: "ns",
+						Address: "10.10.10.10", Port: 9090,
+						Metadata: map[string]string{"x": "y"},
+					},
+					{
+						Name: "endp2", ServName: "srv", NsName: "ns",
+						Address: "11.11.11.11", Port: 9191,
+						Metadata: map[string]string{"z": "w"},
+					},
+				}, nil
+			},
+			expRes: map[string]*openapi.Event{
+				opetcd.KeyFromNames("ns", "srv", "endp1").String(): {
+					Event: "update",
+					Service: openapi.Service{Name: "endp1", Address: "10.10.10.10", Port: 9090,
+						Metadata: []openapi.Metadata{{Key: "yes", Value: "yes"}},
+					},
+				},
+				opetcd.KeyFromNames("ns", "srv", "endp2").String(): {
+					Event: "update",
+					Service: openapi.Service{Name: "endp2", Address: "11.11.11.11", Port: 9191,
+						Metadata: []openapi.Metadata{{Key: "yes", Value: "yes"}},
+					},
+				},
+			},
+		},
+		{
+			now: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvNow)
+					return s
+				}(),
+			},
+			prev: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvPrev)
+					return s
+				}(),
+			},
+			targets: []string{"yes"},
+			listEndp: func(nsName, servName string) ([]*opsr.Endpoint, error) {
+				return []*opsr.Endpoint{}, nil
+			},
+			expRes: map[string]*openapi.Event{},
+		},
+		{
+			now: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvNow)
+					return s
+				}(),
+			},
+			prev: &mvccpb.KeyValue{
+				Key: []byte(opetcd.KeyFromNames("ns", "srv").String()),
+				Value: func() []byte {
+					s, _ := yaml.Marshal(srvPrev)
+					return s
+				}(),
+			},
+			targets: []string{"yes"},
+			listEndp: func(nsName, servName string) ([]*opsr.Endpoint, error) {
+				return nil, fmt.Errorf("whatever")
+			},
+			expErr: fmt.Errorf("whatever"),
+		},
+	}
+
+	fail := func(i int) {
+		a.FailNow("case failed", fmt.Sprintf("case %d", i))
+	}
+	for i, currCase := range cases {
+		e := &etcdWatcher{
+			options: &Options{
+				targetKeys: currCase.targets,
+			},
+			servreg: &fakeSR{
+				_listEndp: currCase.listEndp,
+			},
+		}
+
+		res, err := e.parseServiceChange(currCase.now, currCase.prev)
+		if !a.Equal(currCase.expRes, res) || !a.Equal(currCase.expErr, err) {
+			fail(i)
+		}
+	}
+}
