@@ -18,9 +18,19 @@ package cloudmap
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
 	"github.com/aws/aws-sdk-go/service/servicediscovery"
 	"github.com/aws/aws-sdk-go/service/servicediscovery/servicediscoveryiface"
+)
+
+const (
+	awsIPv4Attr            string = "AWS_INSTANCE_IPV4"
+	awsIPv6Attr            string = "AWS_INSTANCE_IPV6"
+	awsPortAttr            string = "AWS_INSTANCE_PORT"
+	awsDefaultInstancePort int32  = 80
 )
 
 type awsCloudMap struct {
@@ -53,4 +63,82 @@ func (a *awsCloudMap) getServicesIDs(ctx context.Context) ([]string, error) {
 	}
 
 	return servIDs, nil
+}
+
+func (a *awsCloudMap) getInstances(ctx context.Context, servID string) ([]*openapi.Service, error) {
+	out, err := a.sd.ListInstancesWithContext(ctx, &servicediscovery.ListInstancesInput{ServiceId: &servID})
+	if err != nil {
+		return nil, err
+	}
+
+	oaSrvs := []*openapi.Service{}
+	for _, inst := range out.Instances {
+		oaSrv, err := a.parseInstance(servID, inst)
+		if err != nil {
+			log.Debug().Err(err).Str("service-id", servID).Msg("invalid instance: skipping...")
+			continue
+		}
+
+		oaSrvs = append(oaSrvs, oaSrv)
+	}
+
+	return oaSrvs, nil
+}
+
+func (a *awsCloudMap) parseInstance(servID string, inst *servicediscovery.InstanceSummary) (*openapi.Service, error) {
+	if inst.Id == nil || (inst.Id != nil && len(*inst.Id) == 0) {
+		return nil, fmt.Errorf("found instance with no/empty ID")
+	}
+
+	// Check for metadata
+	if inst.Attributes == nil {
+		return nil, fmt.Errorf("instance doesn't have any attribute")
+	}
+
+	found := 0
+	metadata := map[string]string{}
+	for _, key := range a.targetKeys {
+		if val, exists := inst.Attributes[key]; exists && val != nil && len(*val) > 0 {
+			found++
+			metadata[key] = *val
+		}
+	}
+	if found != len(a.targetKeys) {
+		return nil, fmt.Errorf("instance doesn't have required metadata keys")
+	}
+
+	// Check the address
+	address := ""
+	if ipv6 := inst.Attributes[awsIPv6Attr]; ipv6 != nil && len(*ipv6) > 0 {
+		address = *ipv6
+	}
+	if ipv4 := inst.Attributes[awsIPv4Attr]; ipv4 != nil && len(*ipv4) > 0 {
+		address = *ipv4
+	}
+	if len(address) == 0 {
+		return nil, fmt.Errorf("instance has no address")
+	}
+
+	// Check the port
+	port := awsDefaultInstancePort
+	if instancePort := inst.Attributes[awsPortAttr]; instancePort != nil {
+		if intPort, err := strconv.ParseInt(*instancePort, 10, 32); err == nil {
+			port = int32(intPort)
+		}
+	}
+
+	srv := &openapi.Service{
+		Name:    *inst.Id,
+		Address: address,
+		Port:    port,
+		Metadata: func() []openapi.Metadata {
+			met := []openapi.Metadata{}
+			for key, val := range metadata {
+				met = append(met, openapi.Metadata{Key: key, Value: val})
+			}
+			return met
+		}(),
+	}
+
+	return srv, nil
 }

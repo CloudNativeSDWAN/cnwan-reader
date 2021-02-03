@@ -26,9 +26,14 @@ import (
 type fakeSD struct {
 	servicediscoveryiface.ServiceDiscoveryAPI
 
-	_listServices func(ctx aws.Context, input *servicediscovery.ListServicesInput, opts ...request.Option) (*servicediscovery.ListServicesOutput, error)
+	_listServices  func(ctx aws.Context, input *servicediscovery.ListServicesInput, opts ...request.Option) (*servicediscovery.ListServicesOutput, error)
+	_listInstances func(aws.Context, *servicediscovery.ListInstancesInput, ...request.Option) (*servicediscovery.ListInstancesOutput, error)
 }
 
 func (f *fakeSD) ListServicesWithContext(ctx aws.Context, input *servicediscovery.ListServicesInput, opts ...request.Option) (*servicediscovery.ListServicesOutput, error) {
 	return f._listServices(ctx, input, opts...)
+}
+
+func (f *fakeSD) ListInstancesWithContext(ctx aws.Context, input *servicediscovery.ListInstancesInput, opts ...request.Option) (*servicediscovery.ListInstancesOutput, error) {
+	return f._listInstances(ctx, input, opts...)
 }
