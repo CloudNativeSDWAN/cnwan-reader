@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/cmd/poll"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -91,6 +92,9 @@ func init() {
 	rootCmd.PersistentFlags().IntVarP(&interval, "interval", "i", 5, "number of seconds between two consecutive polls")
 	rootCmd.PersistentFlags().StringVar(&endpoint, "adaptor-api", "localhost/cnwan", "the api, in forrm of host:port/path, where the events will be sent to. Look at the documentation to learn more about this.")
 	rootCmd.PersistentFlags().StringVar(&configFilePath, "conf", "", "path to the configuration file, if any")
+
+	// Add the poll command
+	rootCmd.AddCommand(poll.GetPollCommand())
 }
 
 func initConfig() {
