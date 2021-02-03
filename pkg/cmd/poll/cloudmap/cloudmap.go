@@ -17,13 +17,40 @@
 package cloudmap
 
 import (
+	"context"
+
 	"github.com/aws/aws-sdk-go/service/servicediscovery"
+	"github.com/aws/aws-sdk-go/service/servicediscovery/servicediscoveryiface"
 )
 
 type awsCloudMap struct {
 	opts *Options
-	sd   *servicediscovery.ServiceDiscovery
+	sd   servicediscoveryiface.ServiceDiscoveryAPI
 
 	targetKeys      []string
 	adaptorEndpoint string
+}
+
+func (a *awsCloudMap) getCurrentState(ctx context.Context) {
+	// TODO: implement me
+}
+
+func (a *awsCloudMap) getServicesIDs(ctx context.Context) ([]string, error) {
+	// TODO: specify that it takes only 100 services at a time
+	// TODO: get next page?
+	out, err := a.sd.ListServicesWithContext(ctx, &servicediscovery.ListServicesInput{})
+	if err != nil {
+		return nil, err
+	}
+
+	servIDs := []string{}
+	for _, service := range out.Services {
+		if service.Id != nil && len(*service.Id) > 0 {
+			servIDs = append(servIDs, *service.Id)
+		} else {
+			log.Debug().Msg("found service with no/empty ID has been found: skipping...")
+		}
+	}
+
+	return servIDs, nil
 }
