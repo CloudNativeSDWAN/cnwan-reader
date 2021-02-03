@@ -25,7 +25,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: cnwan/reader:${{ github.event.release.tag_name }}
+          tags: cnwan/cnwan-reader:${{ github.event.release.tag_name }}
       
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
