@@ -16,9 +16,31 @@
 
 package cloudmap
 
-type awsCloudMap struct {
-	opts *Options
+import (
+	"fmt"
 
-	targetKeys      []string
-	adaptorEndpoint string
+	"github.com/spf13/cobra"
+)
+
+func parseFlags(cmd *cobra.Command) (*Options, error) {
+	opts := &Options{}
+
+	awsRegion, _ := cmd.Flags().GetString("region")
+	if len(awsRegion) == 0 {
+		return nil, fmt.Errorf("region not provided")
+	}
+	opts.Region = awsRegion
+
+	credsPath, _ := cmd.Flags().GetString("credentials-path")
+	if len(credsPath) > 0 {
+		opts.CredentialsPath = credsPath
+	}
+
+	pollInterval, _ := cmd.Flags().GetInt("poll-interval")
+	if pollInterval <= 0 {
+		pollInterval = 5
+	}
+	opts.PollInterval = pollInterval
+
+	return opts, nil
 }

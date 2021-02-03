@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/internal/utils"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
@@ -49,15 +50,43 @@ func GetCloudMapCommand() *cobra.Command {
 		Long:    cmdLong,
 		Example: cmdExample,
 		PreRun: func(cmd *cobra.Command, _ []string) {
-			// Parse the flag
-			// TODO: implement me
+			if debugMode, _ := cmd.Flags().GetBool("debug"); debugMode {
+				zerolog.SetGlobalLevel(zerolog.DebugLevel)
+			}
+
+			opts, err := parseFlags(cmd)
+			if err != nil {
+				log.Fatal().Err(err).Msg("fatal error encountered")
+			}
+
+			if len(opts.CredentialsPath) > 0 {
+				os.Setenv("AWS_SHARED_CREDENTIALS_FILE", opts.CredentialsPath)
+			}
+
+			metadataKeys, err := utils.GetMetadataKeysFromCmdFlags(cmd)
+			if err != nil {
+				log.Fatal().Err(err).Msg("fatal error encountered")
+				return
+			}
+
+			adaptorEndpoint, err := utils.GetAdaptorEndpointFromFlags(cmd)
+			if err != nil {
+				log.Fatal().Err(err).Msg("fatal error encountered")
+				return
+			}
+
+			cm = &awsCloudMap{
+				opts:            opts,
+				targetKeys:      metadataKeys,
+				adaptorEndpoint: adaptorEndpoint,
+			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			// TODO: implement me
 			ctx, canc := context.WithCancel(context.Background())
 			exitChan := make(chan struct{})
 
-			// TODO: use the context and the handler
+			// TODO: use the context
 			_, _ = ctx, cm
 
 			// Graceful shutdown
