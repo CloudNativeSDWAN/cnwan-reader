@@ -17,6 +17,7 @@
 package poll
 
 import (
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/cmd/poll/cloudmap"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +37,8 @@ func GetPollCommand() *cobra.Command {
 	cmd.Flags().Int("poll-interval", 5, "interval between two consecutive polls")
 
 	// Subcommands
-	// TODO: add subcommands
+	// TODO: service directory will be inserted here as well
+	cmd.AddCommand(cloudmap.GetCloudMapCommand())
 
 	return cmd
 }
