@@ -16,8 +16,13 @@
 
 package cloudmap
 
+import (
+	"github.com/aws/aws-sdk-go/service/servicediscovery"
+)
+
 type awsCloudMap struct {
 	opts *Options
+	sd   *servicediscovery.ServiceDiscovery
 
 	targetKeys      []string
 	adaptorEndpoint string

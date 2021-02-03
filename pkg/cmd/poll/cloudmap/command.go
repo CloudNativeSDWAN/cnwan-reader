@@ -23,6 +23,9 @@ import (
 	"os/signal"
 
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/internal/utils"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/servicediscovery"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
@@ -75,8 +78,16 @@ func GetCloudMapCommand() *cobra.Command {
 				return
 			}
 
+			sess, err := session.NewSession()
+			if err != nil {
+				log.Fatal().Err(err).Msg("could not start AWS session")
+				return
+			}
+			sd := servicediscovery.New(sess, aws.NewConfig().WithRegion(opts.Region))
+
 			cm = &awsCloudMap{
 				opts:            opts,
+				sd:              sd,
 				targetKeys:      metadataKeys,
 				adaptorEndpoint: adaptorEndpoint,
 			}
