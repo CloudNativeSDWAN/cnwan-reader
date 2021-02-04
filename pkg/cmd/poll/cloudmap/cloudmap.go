@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
 	"github.com/aws/aws-sdk-go/service/servicediscovery"
@@ -27,10 +28,11 @@ import (
 )
 
 const (
-	awsIPv4Attr            string = "AWS_INSTANCE_IPV4"
-	awsIPv6Attr            string = "AWS_INSTANCE_IPV6"
-	awsPortAttr            string = "AWS_INSTANCE_PORT"
-	awsDefaultInstancePort int32  = 80
+	awsIPv4Attr            string        = "AWS_INSTANCE_IPV4"
+	awsIPv6Attr            string        = "AWS_INSTANCE_IPV6"
+	awsPortAttr            string        = "AWS_INSTANCE_PORT"
+	awsDefaultInstancePort int32         = 80
+	defaultTimeout         time.Duration = 30 * time.Second
 )
 
 type awsCloudMap struct {
@@ -41,8 +43,38 @@ type awsCloudMap struct {
 	adaptorEndpoint string
 }
 
-func (a *awsCloudMap) getCurrentState(ctx context.Context) {
-	// TODO: implement me
+func (a *awsCloudMap) getCurrentState(ctx context.Context) error {
+	srvCtx, srvCanc := context.WithTimeout(ctx, defaultTimeout)
+	srvIDs, err := a.getServicesIDs(srvCtx)
+	if err != nil {
+		srvCanc()
+		return err
+	}
+	srvCanc()
+
+	if len(srvIDs) == 0 {
+		return nil
+	}
+
+	for _, srvID := range srvIDs {
+		go func(id string) {
+			instCtx, instCanc := context.WithTimeout(ctx, defaultTimeout)
+			defer instCanc()
+
+			insts, err := a.getInstances(instCtx, id)
+			if err != nil {
+				log.Err(err).Str("serv-id", id).Msg("could not get instances for this service, skipping...")
+				return
+			}
+
+			for _, inst := range insts {
+				// TODO: do something with this instance
+				_ = inst
+			}
+		}(srvID)
+	}
+
+	return nil
 }
 
 func (a *awsCloudMap) getServicesIDs(ctx context.Context) ([]string, error) {

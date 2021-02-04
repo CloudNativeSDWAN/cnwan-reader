@@ -93,12 +93,15 @@ func GetCloudMapCommand() *cobra.Command {
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			// TODO: implement me
 			ctx, canc := context.WithCancel(context.Background())
 			exitChan := make(chan struct{})
 
-			// TODO: use the context
-			_, _ = ctx, cm
+			go func() {
+				if err := cm.getCurrentState(ctx); err != nil {
+					close(exitChan)
+					log.Fatal().Err(err).Msg("error while getting initial state of cloud map")
+				}
+			}()
 
 			// Graceful shutdown
 			sig := make(chan os.Signal, 1)
