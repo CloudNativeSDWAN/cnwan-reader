@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
@@ -43,21 +44,27 @@ type awsCloudMap struct {
 	adaptorEndpoint string
 }
 
-func (a *awsCloudMap) getCurrentState(ctx context.Context) error {
+func (a *awsCloudMap) getCurrentState(ctx context.Context) (map[string]*openapi.Service, error) {
 	srvCtx, srvCanc := context.WithTimeout(ctx, defaultTimeout)
 	srvIDs, err := a.getServicesIDs(srvCtx)
 	if err != nil {
 		srvCanc()
-		return err
+		return nil, err
 	}
 	srvCanc()
 
 	if len(srvIDs) == 0 {
-		return nil
+		return map[string]*openapi.Service{}, nil
 	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(srvIDs))
+	var locker sync.Mutex
+	oaSrvs := map[string]*openapi.Service{}
 
 	for _, srvID := range srvIDs {
 		go func(id string) {
+			defer wg.Done()
 			instCtx, instCanc := context.WithTimeout(ctx, defaultTimeout)
 			defer instCanc()
 
@@ -67,14 +74,17 @@ func (a *awsCloudMap) getCurrentState(ctx context.Context) error {
 				return
 			}
 
-			for _, inst := range insts {
-				// TODO: do something with this instance
-				_ = inst
+			locker.Lock()
+			defer locker.Unlock()
+			for i := 0; i < len(insts); i++ {
+				oaID := fmt.Sprintf("services/%s/endpoints/%s", id, insts[i].Name)
+				oaSrvs[oaID] = insts[i]
 			}
 		}(srvID)
 	}
+	wg.Wait()
 
-	return nil
+	return oaSrvs, nil
 }
 
 func (a *awsCloudMap) getServicesIDs(ctx context.Context) ([]string, error) {

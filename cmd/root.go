@@ -114,6 +114,7 @@ func initConfig() {
 	logger = log.Logger
 }
 
+// TODO: remove this and use utils.SanitizeLocalhost.
 func sanitizeAdaptorEndpoint(endp string) string {
 	endp = strings.Trim(endp, "/")
 

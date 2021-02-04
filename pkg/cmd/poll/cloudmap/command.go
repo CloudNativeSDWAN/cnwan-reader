@@ -23,6 +23,9 @@ import (
 	"os/signal"
 
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/internal/utils"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/poller"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/queue"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/services"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/servicediscovery"
@@ -60,6 +63,7 @@ func GetCloudMapCommand() *cobra.Command {
 			opts, err := parseFlags(cmd)
 			if err != nil {
 				log.Fatal().Err(err).Msg("fatal error encountered")
+				return
 			}
 
 			if len(opts.CredentialsPath) > 0 {
@@ -94,13 +98,40 @@ func GetCloudMapCommand() *cobra.Command {
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, canc := context.WithCancel(context.Background())
-			exitChan := make(chan struct{})
+
+			datastore := services.NewDatastore()
+			servsHandler, err := services.NewHandler(ctx, cm.adaptorEndpoint)
+			if err != nil {
+				log.Fatal().Err(err).Msg("error while trying to connect to service directory")
+			}
+			sendQueue := queue.New(ctx, servsHandler)
 
 			go func() {
-				if err := cm.getCurrentState(ctx); err != nil {
-					close(exitChan)
+				oaSrvs, err := cm.getCurrentState(ctx)
+				if err != nil {
 					log.Fatal().Err(err).Msg("error while getting initial state of cloud map")
+					return
 				}
+
+				if filtered := datastore.GetEvents(oaSrvs); len(filtered) > 0 {
+					sendQueue.Enqueue(filtered)
+				}
+
+				// Get the poller
+				poll := poller.New(ctx, cm.opts.PollInterval)
+				poll.SetPollFunction(func() {
+					oaSrvs, err := cm.getCurrentState(ctx)
+					if err != nil {
+						log.Err(err).Msg("error while polling, skipping...")
+						return
+					}
+
+					if filtered := datastore.GetEvents(oaSrvs); len(filtered) > 0 {
+						sendQueue.Enqueue(filtered)
+					}
+				})
+
+				poll.Start()
 			}()
 
 			// Graceful shutdown
@@ -114,7 +145,6 @@ func GetCloudMapCommand() *cobra.Command {
 			// Cancel the context and wait for objects that use it to receive
 			// the stop command
 			canc()
-			<-exitChan
 
 			log.Info().Msg("good bye!")
 		},
