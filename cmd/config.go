@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/cmd/poll/cloudmap"
 	"gopkg.in/yaml.v2"
 )
 
@@ -51,6 +52,8 @@ type ServiceRegistrySettings struct {
 	// GCPServiceDirectory is the field with configuration about service
 	// directory
 	GCPServiceDirectory *ServiceDirectoryConfig `yaml:"gcpServiceDirectory,omitempty"`
+	// AWSCloudMap contains configuration about AWS CloudMap
+	AWSCloudMap *cloudmap.Options `yaml:"awsCloudMap,omitempty"`
 }
 
 // ServiceDirectoryConfig contains Service Directory configuration.

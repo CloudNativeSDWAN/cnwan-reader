@@ -5,9 +5,14 @@ adaptor:
 metadataKeys:
   - traffic-profile
 serviceRegistry:
+  # Only one between gcpServiceDirectory and awsCloudMap must be present
   gcpServiceDirectory:
     pollInterval: 18
     region: us-west1
     projectID: my-project
     serviceAccountPath: /path/to/the/service-account.json
+  awsCloudMap:
+    pollInterval: 13
+    region: us-west-2
+    credentialsPath: /path/to/the/credentials
 
