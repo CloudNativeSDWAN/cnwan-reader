@@ -178,7 +178,9 @@ func TestGetInstances(t *testing.T) {
 			sd: &fakeSD{
 				_listInstances: currCase.listInst,
 			},
-			targetKeys: []string{"yes"},
+			opts: &options{
+				keys: []string{"yes"},
+			},
 		}
 		res, err := cm.getInstances(context.Background(), "whatever")
 		if !a.Equal(currCase.expRes, res) || !a.Equal(currCase.expErr, err) {
@@ -189,7 +191,9 @@ func TestGetInstances(t *testing.T) {
 
 func TestParseInstance(t *testing.T) {
 	cm := &awsCloudMap{
-		targetKeys: []string{"yes"},
+		opts: &options{
+			keys: []string{"yes"},
+		},
 	}
 	a := assert.New(t)
 	srvID := "srv-id"

@@ -37,11 +37,8 @@ const (
 )
 
 type awsCloudMap struct {
-	opts *Options
+	opts *options
 	sd   servicediscoveryiface.ServiceDiscoveryAPI
-
-	targetKeys      []string
-	adaptorEndpoint string
 }
 
 func (a *awsCloudMap) getCurrentState(ctx context.Context) (map[string]*openapi.Service, error) {
@@ -139,13 +136,13 @@ func (a *awsCloudMap) parseInstance(servID string, inst *servicediscovery.Instan
 
 	found := 0
 	metadata := map[string]string{}
-	for _, key := range a.targetKeys {
+	for _, key := range a.opts.keys {
 		if val, exists := inst.Attributes[key]; exists && val != nil && len(*val) > 0 {
 			found++
 			metadata[key] = *val
 		}
 	}
-	if found != len(a.targetKeys) {
+	if found != len(a.opts.keys) {
 		return nil, fmt.Errorf("instance doesn't have required metadata keys")
 	}
 

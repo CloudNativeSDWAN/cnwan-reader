@@ -18,9 +18,11 @@ package utils
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/configuration"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -28,19 +30,24 @@ import (
 // GetMetadataKeysFromCmdFlags returns the keys from --metadata-keys flag
 func GetMetadataKeysFromCmdFlags(cmd *cobra.Command) ([]string, error) {
 	keys := []string{}
-	_keys, _ := cmd.Flags().GetStringSlice("metadata-keys")
 
-	switch l := len(_keys); {
+	if cmd.Flags().Changed("metadata-keys") {
+		keys, _ = cmd.Flags().GetStringSlice("metadata-keys")
+	} else {
+		if conf := configuration.GetConfigFile(); conf != nil && len(conf.MetadataKeys) > 0 {
+			keys = conf.MetadataKeys
+		}
+	}
+
+	switch l := len(keys); {
 	case l == 0:
-		return nil, fmt.Errorf("no metadata provided")
+		return nil, fmt.Errorf("no metadata keys provided")
 	case l > 1:
 		log.Warn().Msg("multiple metadata keys are not supported yet, only the first one will be used")
 		fallthrough
 	default:
-		keys = append(keys, _keys[0])
+		return []string{keys[0]}, nil
 	}
-
-	return keys, nil
 }
 
 // MapContainsKeys returns true if the subject map contains target keys
@@ -58,8 +65,40 @@ func MapContainsKeys(subject map[string]string, targets []string) bool {
 // GetAdaptorEndpointFromFlags gets the value of --adaptor-api or returns an
 // error in case it is not valid.
 func GetAdaptorEndpointFromFlags(cmd *cobra.Command) (string, error) {
-	endp, _ := cmd.Flags().GetString("adaptor-api")
-	return SanitizeLocalhost(endp)
+	endp := "localhost:80/cnwan"
+
+	if cmd.Flags().Changed("adaptor-api") {
+		endp, _ = cmd.Flags().GetString("adaptor-api")
+	} else {
+		if conf := configuration.GetConfigFile(); conf != nil && len(conf.Adaptor) > 0 {
+			endp = conf.Adaptor
+		}
+	}
+
+	_endp := fmt.Sprintf("http://%s", endp)
+	if _, err := url.ParseRequestURI(_endp); err != nil {
+		return "", err
+	}
+
+	if strings.HasPrefix(endp, "localhost") {
+		return SanitizeLocalhost(endp)
+	}
+
+	return endp, nil
+}
+
+// GetDebugModeFromFlags gets the value of --debug flag
+func GetDebugModeFromFlags(cmd *cobra.Command) bool {
+	if cmd.Flags().Changed("debug") {
+		_debug, _ := cmd.Flags().GetBool("debug")
+		return _debug
+	}
+
+	if conf := configuration.GetConfigFile(); conf != nil {
+		return conf.DebugMode
+	}
+
+	return false
 }
 
 // SanitizeLocalhost changes localhost to host.docker.internal in case the

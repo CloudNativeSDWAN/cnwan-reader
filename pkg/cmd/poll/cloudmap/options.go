@@ -16,11 +16,11 @@
 
 package cloudmap
 
-// Options contans data needed to connect to the etcd cluster correctly
-type Options struct {
-	// Region where to look for
-	Region string `yaml:"region,omitempty"`
-	// CredentialsPath is the path where to find the AWS credentials.
-	CredentialsPath string `yaml:"credentialsPath,omitempty"`
-	PollInterval    int    `yaml:"pollInterval,omitempty"`
+type options struct {
+	region    string
+	credsPath string
+	interval  int
+	adaptor   string
+	debug     bool
+	keys      []string
 }

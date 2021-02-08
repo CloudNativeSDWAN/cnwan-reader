@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/configuration"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/poller"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/queue"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/sdhandler"
@@ -61,44 +62,45 @@ func init() {
 	servicedirectoryCmd.Flags().StringVar(&metadataKey, "metadata-key", "", "name of the metadata key to look for")
 }
 
-func parseServiceDirectoryConf(conf *ServiceDirectoryConfig) {
-	if len(gcloudProject) == 0 && len(conf.ProjectID) > 0 {
-		gcloudProject = conf.ProjectID
+func validateSDFlags(cmd *cobra.Command) error {
+	conf := &configuration.Config{}
+	sdConf := &configuration.ServiceDirectoryConfig{}
+	if _conf := configuration.GetConfigFile(); _conf != nil && _conf.ServiceRegistry != nil && _conf.ServiceRegistry.GCPServiceDirectory != nil {
+		sdConf = _conf.ServiceRegistry.GCPServiceDirectory
+		conf = _conf
 	}
 
-	if len(gcloudRegion) == 0 && len(conf.Region) > 0 {
-		gcloudRegion = conf.Region
-	}
-
-	if len(gcloudServAccount) == 0 && len(conf.ServiceAccountPath) > 0 {
-		gcloudServAccount = conf.ServiceAccountPath
-	}
-
-	if interval == 0 && conf.PollingInterval > 0 {
-		interval = conf.PollingInterval
-	}
-
-	if interval <= 0 {
-		logger.Warn().Msg("invalid interval value used, using default...")
-		interval = 5
-	}
-}
-
-func validateSDFlags() error {
+	// TODO: this needs to be changed to "metadata-keys" on future versions
 	if len(metadataKey) == 0 {
-		return fmt.Errorf("error: no metadata key set")
+		if len(conf.MetadataKeys) == 0 {
+			return fmt.Errorf("error: no metadata key set")
+		}
+
+		metadataKey = conf.MetadataKeys[0]
 	}
 
 	if len(gcloudProject) == 0 {
-		return fmt.Errorf("error: no gcloud project name set")
+		if len(sdConf.ProjectID) == 0 {
+			return fmt.Errorf("error: no gcloud project name set")
+		}
+
+		gcloudProject = sdConf.ProjectID
 	}
 
 	if len(gcloudRegion) == 0 {
-		return fmt.Errorf("error: no gcloud region set")
+		if len(sdConf.Region) == 0 {
+			return fmt.Errorf("error: no gcloud region set")
+		}
+
+		gcloudRegion = sdConf.Region
 	}
 
 	if len(gcloudServAccount) == 0 {
-		return fmt.Errorf("error: no service account path set")
+		if len(sdConf.ServiceAccountPath) == 0 {
+			return fmt.Errorf("error: no service account path set")
+		}
+
+		gcloudServAccount = sdConf.ServiceAccountPath
 	}
 
 	return nil
@@ -108,7 +110,7 @@ func runServiceDirectory(cmd *cobra.Command, args []string) {
 	var err error
 	l := log.With().Str("func", "cmd.runServiceDirectory").Logger()
 
-	if err := validateSDFlags(); err != nil {
+	if err := validateSDFlags(cmd); err != nil {
 		cmd.Usage()
 		logger.Fatal().Err(err).Msg("error while starting service directory")
 		os.Exit(1)

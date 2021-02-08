@@ -22,7 +22,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/internal/utils"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/configuration"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/poller"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/queue"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/services"
@@ -39,8 +39,7 @@ var (
 
 func init() {
 	output := zerolog.ConsoleWriter{Out: os.Stdout}
-	log = zerolog.New(output).With().Timestamp().Logger()
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	log = zerolog.New(output).With().Timestamp().Logger().Level(zerolog.InfoLevel)
 }
 
 // GetCloudMapCommand returns the cloudmap command
@@ -56,30 +55,18 @@ func GetCloudMapCommand() *cobra.Command {
 		Long:    cmdLong,
 		Example: cmdExample,
 		PreRun: func(cmd *cobra.Command, _ []string) {
-			if debugMode, _ := cmd.Flags().GetBool("debug"); debugMode {
-				zerolog.SetGlobalLevel(zerolog.DebugLevel)
-			}
-
-			opts, err := parseFlags(cmd)
+			opts, err := parseFlags(cmd, configuration.GetConfigFile())
 			if err != nil {
 				log.Fatal().Err(err).Msg("fatal error encountered")
 				return
 			}
 
-			if len(opts.CredentialsPath) > 0 {
-				os.Setenv("AWS_SHARED_CREDENTIALS_FILE", opts.CredentialsPath)
+			if len(opts.credsPath) > 0 {
+				os.Setenv("AWS_SHARED_CREDENTIALS_FILE", opts.credsPath)
 			}
 
-			metadataKeys, err := utils.GetMetadataKeysFromCmdFlags(cmd)
-			if err != nil {
-				log.Fatal().Err(err).Msg("fatal error encountered")
-				return
-			}
-
-			adaptorEndpoint, err := utils.GetAdaptorEndpointFromFlags(cmd)
-			if err != nil {
-				log.Fatal().Err(err).Msg("fatal error encountered")
-				return
+			if opts.debug {
+				log = log.Level(zerolog.DebugLevel)
 			}
 
 			sess, err := session.NewSession()
@@ -87,66 +74,15 @@ func GetCloudMapCommand() *cobra.Command {
 				log.Fatal().Err(err).Msg("could not start AWS session")
 				return
 			}
-			sd := servicediscovery.New(sess, aws.NewConfig().WithRegion(opts.Region))
+			sd := servicediscovery.New(sess, aws.NewConfig().WithRegion(opts.region))
 
 			cm = &awsCloudMap{
-				opts:            opts,
-				sd:              sd,
-				targetKeys:      metadataKeys,
-				adaptorEndpoint: adaptorEndpoint,
+				opts: opts,
+				sd:   sd,
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx, canc := context.WithCancel(context.Background())
-
-			datastore := services.NewDatastore()
-			servsHandler, err := services.NewHandler(ctx, cm.adaptorEndpoint)
-			if err != nil {
-				log.Fatal().Err(err).Msg("error while trying to connect to service directory")
-			}
-			sendQueue := queue.New(ctx, servsHandler)
-
-			go func() {
-				oaSrvs, err := cm.getCurrentState(ctx)
-				if err != nil {
-					log.Fatal().Err(err).Msg("error while getting initial state of cloud map")
-					return
-				}
-
-				if filtered := datastore.GetEvents(oaSrvs); len(filtered) > 0 {
-					sendQueue.Enqueue(filtered)
-				}
-
-				// Get the poller
-				poll := poller.New(ctx, cm.opts.PollInterval)
-				poll.SetPollFunction(func() {
-					oaSrvs, err := cm.getCurrentState(ctx)
-					if err != nil {
-						log.Err(err).Msg("error while polling, skipping...")
-						return
-					}
-
-					if filtered := datastore.GetEvents(oaSrvs); len(filtered) > 0 {
-						sendQueue.Enqueue(filtered)
-					}
-				})
-
-				poll.Start()
-			}()
-
-			// Graceful shutdown
-			sig := make(chan os.Signal, 1)
-			signal.Notify(sig, os.Interrupt)
-
-			<-sig
-			fmt.Println()
-			log.Info().Msg("exit requested")
-
-			// Cancel the context and wait for objects that use it to receive
-			// the stop command
-			canc()
-
-			log.Info().Msg("good bye!")
+			run(cm)
 		},
 	}
 
@@ -156,4 +92,63 @@ func GetCloudMapCommand() *cobra.Command {
 	cmd.Flags().StringSlice("metadata-keys", []string{}, "the metadata keys to watch for")
 
 	return cmd
+}
+
+func run(cm *awsCloudMap) {
+	log.Info().Str("service-registry", "Cloud Map").Str("adaptor", cm.opts.adaptor).Msg("starting...")
+
+	ctx, canc := context.WithCancel(context.Background())
+
+	datastore := services.NewDatastore()
+	servsHandler, err := services.NewHandler(ctx, cm.opts.adaptor)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error while trying to connect to aws cloud map")
+	}
+	sendQueue := queue.New(ctx, servsHandler)
+
+	go func() {
+		log.Info().Msg("getting initial state...")
+		oaSrvs, err := cm.getCurrentState(ctx)
+		if err != nil {
+			log.Fatal().Err(err).Msg("error while getting initial state of cloud map")
+			return
+		}
+
+		log.Info().Msg("done")
+		if filtered := datastore.GetEvents(oaSrvs); len(filtered) > 0 {
+			go sendQueue.Enqueue(filtered)
+		}
+
+		// Get the poller
+		log.Info().Msg("observing changes...")
+		poll := poller.New(ctx, cm.opts.interval)
+		poll.SetPollFunction(func() {
+			oaSrvs, err := cm.getCurrentState(ctx)
+			if err != nil {
+				log.Err(err).Msg("error while polling, skipping...")
+				return
+			}
+
+			if filtered := datastore.GetEvents(oaSrvs); len(filtered) > 0 {
+				log.Info().Msg("changes detected")
+				go sendQueue.Enqueue(filtered)
+			}
+		})
+
+		poll.Start()
+	}()
+
+	// Graceful shutdown
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
+
+	<-sig
+	fmt.Println()
+	log.Info().Msg("exit requested")
+
+	// Cancel the context and wait for objects that use it to receive
+	// the stop command
+	canc()
+
+	log.Info().Msg("good bye!")
 }

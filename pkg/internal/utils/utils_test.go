@@ -19,51 +19,10 @@ package utils
 import (
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestGetMetadataKeysFromCmdFlags(t *testing.T) {
-	a := assert.New(t)
-
-	cases := []struct {
-		args   []string
-		expRes []string
-		expErr error
-	}{
-		{
-			expErr: fmt.Errorf("no metadata provided"),
-		},
-		{
-			args:   []string{"key"},
-			expRes: []string{"key"},
-		},
-		{
-			args:   []string{"key1", "key2"},
-			expRes: []string{"key1"},
-		},
-	}
-
-	failed := func(i int) {
-		a.FailNow("case failed", fmt.Sprintf("case %d", i))
-	}
-	for i, currCase := range cases {
-		cmd := &cobra.Command{}
-		cmd.Flags().StringSlice("metadata-keys", []string{}, "")
-		if len(currCase.args) > 0 {
-			cmd.SetArgs([]string{fmt.Sprintf("--metadata-keys=%s", strings.Join(currCase.args, ","))})
-		}
-		cmd.Execute()
-
-		res, err := GetMetadataKeysFromCmdFlags(cmd)
-		if !a.Equal(currCase.expRes, res) || !a.Equal(currCase.expErr, err) {
-			failed(i)
-		}
-	}
-}
 
 func TestMapContainsKeys(t *testing.T) {
 	a := assert.New(t)

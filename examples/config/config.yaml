@@ -1,7 +1,5 @@
 debugMode: true
-adaptor:
-  host: example.com
-  port: 6789
+adaptor: localhost:8383/cnwan-events/
 metadataKeys:
   - traffic-profile
 serviceRegistry:
@@ -15,4 +13,3 @@ serviceRegistry:
     pollInterval: 13
     region: us-west-2
     credentialsPath: /path/to/the/credentials
-

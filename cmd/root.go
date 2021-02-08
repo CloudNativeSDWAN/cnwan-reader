@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/cmd/poll"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/configuration"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -34,45 +35,44 @@ var (
 	metadataKey    string
 	endpoint       string
 	configFilePath string
-	config         *Config
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "cnwan-reader",
-	Short: "CN-WAN Reader observes changes in metadata in a service registry.",
+	TraverseChildren: true,
+	Use:              "cnwan-reader",
+	Short:            "CN-WAN Reader observes changes in metadata in a service registry.",
 	Long: `CN-WAN Reader connects to a service registry and 
 observes changes about registered services, delivering found events to a
 a separate handler for processing.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if len(configFilePath) > 0 {
-			config = parseConfigFile(configFilePath)
+			configuration.ParseConfigurationFile(cmd)
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(configFilePath) == 0 {
-			logger.Fatal().Msg("no command nor configuration provided")
-			cmd.Usage()
-			return
-		}
-		if config == nil {
+		conf := configuration.GetConfigFile()
+		if conf == nil {
 			logger.Fatal().Msg("no configuration provided")
 			cmd.Usage()
 			return
 		}
 
-		if config.ServiceRegistry == nil || (config.ServiceRegistry != nil && config.ServiceRegistry.GCPServiceDirectory == nil) {
-			logger.Fatal().Msg("no service registry provided")
-			cmd.Usage()
+		if conf.ServiceRegistry != nil && conf.ServiceRegistry.GCPServiceDirectory != nil {
+			cmd.SetArgs([]string{"servicedirectory"})
+			cmd.Execute()
 			return
 		}
 
-		// Note that this generally is not the correct way of doing this
-		// because id does not honor (p)preruns and/or (p)postruns, but we
-		// remove any prerun from servicedirectory command and so, this is
-		// fine.
-		// Nonetheless, I will think of a new technique for next versions.
-		servicedirectoryCmd.Run(servicedirectoryCmd, args)
+		if conf.ServiceRegistry != nil && conf.ServiceRegistry.AWSCloudMap != nil {
+			cmd.SetArgs([]string{"poll", "cloudmap"})
+			cmd.Execute()
+			return
+		}
+
+		logger.Fatal().Msg("no service registry provided")
+		cmd.Usage()
+		return
 	},
 }
 
@@ -90,7 +90,7 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "whether to log debug lines")
 	rootCmd.PersistentFlags().IntVarP(&interval, "interval", "i", 5, "number of seconds between two consecutive polls")
-	rootCmd.PersistentFlags().StringVar(&endpoint, "adaptor-api", "localhost/cnwan", "the api, in forrm of host:port/path, where the events will be sent to. Look at the documentation to learn more about this.")
+	rootCmd.PersistentFlags().StringVar(&endpoint, "adaptor-api", "localhost:80/cnwan", "the api, in forrm of host:port/path, where the events will be sent to. Look at the documentation to learn more about this.")
 	rootCmd.PersistentFlags().StringVar(&configFilePath, "conf", "", "path to the configuration file, if any")
 
 	// Add the poll command

@@ -27,10 +27,11 @@ func GetPollCommand() *cobra.Command {
 	// other programming pattern, maybe with a factory.
 
 	cmd := &cobra.Command{
-		Use:     pollUse,
-		Short:   pollShort,
-		Long:    pollLong,
-		Example: pollExample,
+		TraverseChildren: true,
+		Use:              pollUse,
+		Short:            pollShort,
+		Long:             pollLong,
+		Example:          pollExample,
 	}
 
 	// Flags

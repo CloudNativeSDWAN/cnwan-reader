@@ -19,28 +19,66 @@ package cloudmap
 import (
 	"fmt"
 
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/configuration"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/internal/utils"
 	"github.com/spf13/cobra"
 )
 
-func parseFlags(cmd *cobra.Command) (*Options, error) {
-	opts := &Options{}
+func parseFlags(cmd *cobra.Command, conf *configuration.Config) (*options, error) {
+	opts := &options{}
+
+	if conf == nil {
+		conf = &configuration.Config{
+			ServiceRegistry: &configuration.ServiceRegistrySettings{
+				AWSCloudMap: &configuration.CloudMapConfig{},
+			},
+		}
+	}
+	cmConf := conf.ServiceRegistry.AWSCloudMap
 
 	awsRegion, _ := cmd.Flags().GetString("region")
 	if len(awsRegion) == 0 {
-		return nil, fmt.Errorf("region not provided")
+		if len(cmConf.Region) == 0 {
+			return nil, fmt.Errorf("region not provided")
+		}
+
+		awsRegion = cmConf.Region
 	}
-	opts.Region = awsRegion
+	opts.region = awsRegion
 
 	credsPath, _ := cmd.Flags().GetString("credentials-path")
-	if len(credsPath) > 0 {
-		opts.CredentialsPath = credsPath
+	if len(credsPath) == 0 {
+		if len(cmConf.CredentialsPath) > 0 {
+			credsPath = cmConf.CredentialsPath
+		}
 	}
+	opts.credsPath = credsPath
 
-	pollInterval, _ := cmd.Flags().GetInt("poll-interval")
-	if pollInterval <= 0 {
-		pollInterval = 5
+	pollInterval := 5
+	if cmd.Flags().Changed("poll-interval") {
+		_pollInterval, _ := cmd.Flags().GetInt("poll-interval")
+		if _pollInterval > 0 {
+			pollInterval = _pollInterval
+		}
+	} else {
+		if cmConf.PollInterval > 0 {
+			pollInterval = cmConf.PollInterval
+		}
 	}
-	opts.PollInterval = pollInterval
+	opts.interval = pollInterval
+
+	keys, err := utils.GetMetadataKeysFromCmdFlags(cmd)
+	if err != nil {
+		return nil, err
+	}
+	opts.keys = keys
+
+	adaptor, err := utils.GetAdaptorEndpointFromFlags(cmd)
+	if err != nil {
+		return nil, err
+	}
+	opts.adaptor = adaptor
+	opts.debug = utils.GetDebugModeFromFlags(cmd)
 
 	return opts, nil
 }
