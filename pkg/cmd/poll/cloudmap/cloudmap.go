@@ -85,8 +85,6 @@ func (a *awsCloudMap) getCurrentState(ctx context.Context) (map[string]*openapi.
 }
 
 func (a *awsCloudMap) getServicesIDs(ctx context.Context) ([]string, error) {
-	// TODO: specify that it takes only 100 services at a time
-	// TODO: get next page?
 	out, err := a.sd.ListServicesWithContext(ctx, &servicediscovery.ListServicesInput{})
 	if err != nil {
 		return nil, err
