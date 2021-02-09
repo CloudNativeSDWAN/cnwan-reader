@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] (2021-02-09)
+
+### Added
+
+- `poll` command
+- `cloudmap` command
+- `configuration` package: a singleton for containing configuration file
+- Capability to re-route to `poll cloudmap` command if no command is provided
+but `--conf` is.
+- Parse and get the configuration file from `pkg/configuration`.
+- Few functions to parse the command flags.
+- Documentation for CloudMap
+- Goreport badge in readme
+
+### Changed
+
+- `Adaptor` configuration field is now a string: this has be done to be similar
+to the `--adaptor-api` flag.
+- Move config file definition to `pkg/configuration`
+- Merging flag and configuration fields for service directory is now performed
+in `validateSDFlags`.
+- Configuration file is now parsed in `pkg/configuration`.
+
+### Fixed
+
+- Better adaptor endpoint validation
+- Better localhost sanitization
+
 ## [0.4.0] (2021-01-26)
 
 ### Added
