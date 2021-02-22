@@ -1,5 +1,6 @@
 # \EventsApi
 
+<!-- markdown-link-check-disable-next-line -->
 All URIs are relative to *http://localhost/cnwan*
 
 Method | HTTP request | Description

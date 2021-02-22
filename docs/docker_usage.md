@@ -60,7 +60,7 @@ and later the `--conf` must be provided accordingly as
 ## Example
 
 This example follows the same requirements as this
-[example](./usage#example) -- replace `cnwan/cnwan-reader` with your image
+[example](./usage.md#example) -- replace `cnwan/cnwan-reader` with your image
 in case you have built it yourself:
 
 ```bash
@@ -77,7 +77,7 @@ servicedirectory \
 ```
 
 If you want to use a configuration file, you can create the same configuration
-file as in the [example](./usage#example). For your convenience:
+file as in the [example](./usage.md#example). For your convenience:
 
 ```yaml
 adaptor:

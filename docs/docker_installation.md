@@ -34,7 +34,7 @@ Now you can use the program as
 docker run cnwan/cnwan-reader COMMAND
 ```
 
-Follow the [Docker Usage](./docker-usage.md) section to learn how to use it.
+Follow the [Docker Usage](./docker_usage.md) section to learn how to use it.
 
 ## Option 2: Build it yourself
 
@@ -89,7 +89,7 @@ Now you can run the program as
 docker run <repository/image-name:tag-name> COMMAND
 ```
 
-Follow the [Docker Usage](./docker-usage.md) section to learn how to use it.
+Follow the [Docker Usage](./docker_usage.md) section to learn how to use it.
 
 ## Optional: Rename it
 

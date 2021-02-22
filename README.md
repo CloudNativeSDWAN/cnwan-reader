@@ -4,7 +4,7 @@
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/CloudNativeSDWAN/cnwan-reader)
 ![OpenAPI version](https://img.shields.io/badge/OpenAPI-3.0.1-green)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/CloudNativeSDWAN/cnwan-reader/Build)
-![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/CloudNativeSDWAN/cnwan-reader)
+![GitHub release (latest semver)](https://img.shields.io/github/v/release/CloudNativeSDWAN/cnwan-reader)
 ![Docker Image Version (latest semver)](https://img.shields.io/docker/v/cnwan/cnwan-reader?label=docker%20image%20version)
 
 CN-WAN Reader watches a service registry for changes and sends events to an
@@ -44,8 +44,8 @@ to know more about how it works.
 To learn how to install or use the program, please follow documentation
 provided in the [docs](./docs) directory.
 
-You can start by reading [Installation](./installation.md) or
-[Docker Installation](./docker_installation.md) if you want to install and
+You can start by reading [Installation](./docs/installation.md) or
+[Docker Installation](./docs/docker_installation.md) if you want to install and
 run the program inside a docker container.
 
 ## OpenAPI Specification

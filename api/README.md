@@ -54,6 +54,7 @@ import "./openapi"
 
 ## Documentation for API Endpoints
 
+<!-- markdown-link-check-disable-next-line -->
 All URIs are relative to *http://localhost/cnwan*
 
 Class | Method | HTTP request | Description
