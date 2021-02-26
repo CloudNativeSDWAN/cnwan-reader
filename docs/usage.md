@@ -6,18 +6,22 @@ It applies to whatever installation method you chose, but if you are running
 the program in a docker container, you should also follow
 [Docker Usage](./docker_usage.md) after reading this.
 
-You should pre-pend `path/to/cnwan-reader` before these commands, or
+You should prefix `path/to/cnwan-reader` before these commands, or
 `docker run image` if you are running the program inside a docker container.
 
 ## Table of Contents
 
 * [CNWAN Adaptor](#cnwan-adaptor)
 * [Metadata Key](#metadata-key)
-* [Service Directory](#service-directory)
+* [Service registries](#service-registries)
+  * [Google Cloud Service Directory](#google-cloud-service-directory)
+  * [AWS Cloud Map](#aws-cloud-map)
 * [Configration File](#configuration-file)
-* [Example](#example)
+* [Examples](#examples)
+  * [With Service Directory](#with-service-directory)
+  * [With Cloud Map](#with-cloud-map)
 
-### CNWAN Adaptor
+## CNWAN Adaptor
 
 *Adaptors* are external handlers that will receive the events sent by the CNWAN
 Reader and process them.
@@ -44,7 +48,7 @@ Please follow [OpenAPI Specification](../README.md#openapi-specification)
 to learn more about adaptors and [Example](#example) for a complete usage
 example that includes a CNWAN Adaptor endpoint as well.
 
-### Metadata Key
+## Metadata Key
 
 The CNWAN Reader only reads services that have the provided metadata key.
 
@@ -60,7 +64,9 @@ Please note that it will only look for the *key* and will not do any
 type of filtering on the value, as this job is performed by the CNWAN
 Adaptor or whomever is in charge of handling the values.
 
-### Service Directory
+## Service registries
+
+### Google Cloud Service Directory
 
 To connect to *Google Cloud Service Directory*, you can use the
 `servicedirectory` command. A region, project and service account path must be
@@ -85,6 +91,28 @@ run the project:
 Finally, please make sure your service account has *at least* role
 `roles/servicedirectory.viewer`. We suggest you create service account just for
 the CNWAN Reader with the aforementioned role.
+
+**NOTE**: `servicedirectory` command will be moved to `poll` command soon, so
+the full command will be `cnwan-reader poll servicedirectory [...]`.
+
+### AWS Cloud Map
+
+To use *AWS Cloud Map*, you need to run *CN-WAN Reader* with the `poll` command
+like `cnwan-reader poll cloudmap [...]`.
+
+You will need to provide a region to look for with `--region` and, optionally,
+a path where your credentials are with `--credentials-path`. If you have the
+[aws cli](https://aws.amazon.com/cli/) installed then you don't need to set
+this flag, as they should reside in `$HOME/.aws/credentials` in Unix-based
+systems or `%UserProfile%/.aws/credentials` in Windows ones, unless you want
+to use other credentials.
+
+In order to use CN-WAN Reader with Cloud Map, your IAM identity needs to have
+*at least* policy `AWSCloudMapReadOnlyAccess` or above.
+
+For more information about AWS credentials, you may take a look at aws'
+[documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
+about this topic.
 
 ## Configuration File
 
@@ -119,6 +147,8 @@ former will be completely ignored.
 
 ## Examples
 
+### With Service Directory
+
 In the following example, the CNWAN Reader watches changes in
 Google Cloud Service Directory with the following requirements:
 
@@ -129,7 +159,7 @@ key in their metadata
 * Service account is placed inside `path/to/creds` folder
 * The name of the service account file is `serv-acc.json`
 * The endpoint of the adaptor is the default one
-(`http://localhost/cnwan/events`). In such a case there is no need to use
+(`http://localhost:80/cnwan/events`). In such a case there is no need to use
 the `--adaptor-api` flag, but here it is included for clarity.
 * Interval between two watches is `10 seconds`
 
@@ -144,12 +174,10 @@ cnwan-reader sd \
 ```
 
 You can also use a configuration file to do that. Set the configuration file
-as:
+as this:
 
 ```yaml
-adaptor:
-  host: localhost
-  port: 80
+adaptor: localhost:80/cnwan
 metadataKeys:
   - cnwan.io/traffic-profile
 serviceRegistry:
@@ -161,6 +189,69 @@ serviceRegistry:
 ```
 
 Execute the following command:
+
+```bash
+cnwan-reader servicedirectory --conf /path/to/configuration/file.yaml
+```
+
+or just:
+
+```bash
+cnwan-reader --conf /path/to/configuration/file.yaml
+```
+
+### With Cloud Map
+
+In the following example, the CNWAN Reader watches changes in
+AWS Cloud Map with the following requirements:
+
+* The *allowed* services have at least the `cnwan.io/traffic-profile`
+key in their metadata
+* The region is `us-west-2`
+* The credentials file is in `$HOME/.aws/credentials`, so there is no need to
+use the `--credentials-path` flag.
+* The endpoint of the adaptor is the default one
+(`http://localhost:80/cnwan/events`). In such a case there is no need to use
+the `--adaptor-api` flag, but here it is included for clarity.
+* Interval between two watches is `10 seconds`
+
+The command below assumes you want to use the default *aws profile*:
+run the following command prior to running cnwan reader if you want to use
+another one:
+
+```bash
+export AWS_PROFILE=your_profile
+```
+
+```bash
+cnwan-reader poll cloudmap \
+--region us-west-2 \
+--metadata-keys cnwan.io/traffic-profile \
+--adaptor-api localhost/cnwan/events \
+--interval 10
+```
+
+You can also use a configuration file to do that. Set the configuration file
+as:
+
+```yaml
+...
+serviceRegistry:
+  awsCloudMap:
+    region: us-west-2
+    pollInterval: 10
+```
+
+The file has been truncated with just the relevant parts, follow the sections
+above or the previous example to get the rest of the file.
+
+Execute the following command:
+
+```bash
+cnwan-reader poll cloudmap --conf /path/to/configuration/file.yaml
+```
+
+or just:
 
 ```bash
 cnwan-reader --conf /path/to/configuration/file.yaml

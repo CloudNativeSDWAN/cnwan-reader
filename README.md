@@ -2,6 +2,7 @@
 
 ![GitHub](https://img.shields.io/github/license/CloudNativeSDWAN/cnwan-reader)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/CloudNativeSDWAN/cnwan-reader)
+[![Go Report Card](https://goreportcard.com/badge/github.com/CloudNativeSDWAN/cnwan-reader)](https://goreportcard.com/report/github.com/CloudNativeSDWAN/cnwan-reader)
 ![OpenAPI version](https://img.shields.io/badge/OpenAPI-3.0.1-green)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/CloudNativeSDWAN/cnwan-reader/Build)
 ![GitHub release (latest semver)](https://img.shields.io/github/v/release/CloudNativeSDWAN/cnwan-reader)
@@ -30,7 +31,10 @@ Please follow this readme to know more about *OpenAPI*, *Adaptors* and
 ## Supported Service Registries
 
 Currently, the CN-WAN Reader can discover services/endpoints published to
-Google Cloud's [Service directory](https://cloud.google.com/service-directory).
+Google Cloud's [Service directory](https://cloud.google.com/service-directory)
+and AWS [Cloud Map](https://aws.amazon.com/cloud-map/).
+
+### Google Cloud Service Directory
 
 In order to connect correctly, a
 [service account](https://cloud.google.com/iam/docs/service-accounts) is
@@ -39,6 +43,25 @@ To learn more about Google Cloud Service Accounts, you can also consult
 [this guide](https://cloud.google.com/iam/docs/creating-managing-service-accounts).
 Finally, you can read Service Directory's [documentation](https://cloud.google.com/service-directory/docs)
 to know more about how it works.
+
+Finally, please make sure your service account has *at least* role
+`roles/servicedirectory.viewer`. We suggest you create service account just for
+the CNWAN Reader with the aforementioned role.
+
+### AWS Cloud Map
+
+You will need valid
+[credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
+in able to watch changes correctly.
+
+In order to use CN-WAN Reader with Cloud Map, your IAM identity needs to have
+*at least* policy `AWSCloudMapReadOnlyAccess` or above.
+
+Please note that, as of now, the reader is only able to read up to `100`
+services at a time and `100` instances per service.  
+While this should more than enough for the vast majority of use-cases, if
+demand for supporting a higher number is there, the reader will be able to read
+more on next updates.
 
 ## Documentation
 

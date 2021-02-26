@@ -26,7 +26,7 @@ var shortVer bool
 
 const (
 	majorVersion    = 0
-	minorVersion    = 4
+	minorVersion    = 5
 	patchVersion    = 0
 	shortVerPattern = "v%d.%d.%d"
 	longVerPattern  = "MAJOR=%d; MINOR=%d; GIT-VERSION=%s"
