@@ -116,20 +116,11 @@ repository name.
 
 ## Push it
 
-If you also wish to push the container to a container registry, make sure you
-are correctly logged in to it.  
-Most of the times, [this guide](https://docs.docker.com/engine/reference/commandline/login/)
-should do it, but we encourage you to read your container registry's official
-documentation to learn how to do that.  
+If you also wish to push the container to a container registry, make sure you are correctly logged in to it. Most of the times, [this guide](https://docs.docker.com/engine/reference/commandline/login/) should do it, but we encourage you to read your container registry's official documentation to learn how to do that.  
 
-Your image name should respect the container registry format: i.e. if you are
-using [DockerHub](https://hub.docker.com/) the name of your image should be
-something like `your-username/image-name:tag-name`.  
-For other registries the full repository URL should be included, i.e.
-`registry.com/your-username/image-name:tag-name`.
+Your image name should respect the container registry format: i.e. if you are using [DockerHub](https://hub.docker.com/) the name of your image should be something like `your-username/image-name:tag-name`. For other registries the full repository URL should be included, i.e. `registry.com/your-username/image-name:tag-name`.
 
-Finally, to push it to a container registry, and supposing you have modified
-the `Makefile` as described in the previous sections:
+Finally, to push it to a container registry, and supposing you have modified the `Makefile` as described in the previous sections:
 
 ```bash
 make docker-push
