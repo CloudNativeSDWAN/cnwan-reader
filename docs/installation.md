@@ -30,7 +30,7 @@ Follow [Usage](./usage.md) to learn how to use the program.
 
 ## Option 2: Build it yourself
 
-As the previous section, this requires [Golang](https://golang.org/doc/install) to be installed on the machine in order to run the program and is most suitable for users that want to modify it or contribute to it.  
+As the previous section, this requires [Golang](https://golang.org/doc/install) to be installed on the machine in order to run the program and is most suitable for users that want to modify it or contribute to it.
 
 ### Clone the project
 

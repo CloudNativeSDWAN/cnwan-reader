@@ -2,23 +2,18 @@
 
 This guide is for user that prefer to run the program with docker.
 
-You can either use the [official docker image](#use-the-official-image) or
-[build it yourself](#build-it-yoursel).
+You can either use the [official docker image](#use-the-official-image) or [build it yourself](#build-it-yoursel).
 
-This requires you to have [Docker](https://www.docker.com/get-started)
-installed:
+This requires you to have [Docker](https://www.docker.com/get-started) installed:
 
-* *Unix/Linux* users with
-  [Snap](https://snapcraft.io/docs/installing-snapd):
+* *Unix/Linux* users with [Snap](https://snapcraft.io/docs/installing-snapd):
 
   ```bash
   sudo snap install docker
   ```
 
-* *MacOs* users:
-  [Docker Desktop for Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac/)
-* *Windows* users:
-  [Docker Desktop for Windows](https://hub.docker.com/editions/community/docker-ce-desktop-windows/)
+* *MacOs* users: [Docker Desktop for Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac/)
+* *Windows* users: [Docker Desktop for Windows](https://hub.docker.com/editions/community/docker-ce-desktop-windows/)
 
 ## Option 1: Use the official image
 
@@ -38,8 +33,7 @@ Follow the [Docker Usage](./docker_usage.md) section to learn how to use it.
 
 ## Option 2: Build it yourself
 
-This method is most suitable for users that want to modify it or contribute
-to it.  
+This method is most suitable for users that want to modify it or contribute to it.
 
 ### Clone the project
 
@@ -54,12 +48,7 @@ cd cnwan-reader
 
 Now you need to build the program in order to use it.
 
-Although you may use `docker` commands to do so, we recommend using the
-included `Makefile` as this will automate a lot of commands.  
-To use the `Makefile` you need to have `Make` installed, which comes already
-pre-installed if you are a *Unix/Linux/Mac* user. If you are a *Windows* user,
-you can download the binaries from
-[this page](http://gnuwin32.sourceforge.net/packages/make.htm).
+Although you may use `docker` commands to do so, we recommend using the included `Makefile` as this will automate a lot of commands. To use the `Makefile` you need to have `Make` installed, which comes already pre-installed if you are a *Unix/Linux/Mac* user. If you are a *Windows* user, you can download the binaries from [this page](http://gnuwin32.sourceforge.net/packages/make.htm).
 
 ### Build it
 
@@ -69,8 +58,7 @@ Execute:
 make docker-build IMG=<repository/image-name:tag-name>
 ```
 
-To avoid specifying the `IMG` parameter every time, you can modify the top
-of the `Makefile` to look like this:
+To avoid specifying the `IMG` parameter every time, you can modify the top of the `Makefile` to look like this:
 
 ```Makefile
 # Image URL to use all building/pushing image targets
@@ -111,12 +99,11 @@ You can now run the program as just
 docker run cnwan-reader COMMAND
 ```
 
-Note that this is only for running it locally, as it won't be a valid
-repository name.
+Note that this is only for running it locally, as it won't be a valid repository name.
 
 ## Push it
 
-If you also wish to push the container to a container registry, make sure you are correctly logged in to it. Most of the times, [this guide](https://docs.docker.com/engine/reference/commandline/login/) should do it, but we encourage you to read your container registry's official documentation to learn how to do that.  
+If you also wish to push the container to a container registry, make sure you are correctly logged in to it. Most of the times, [this guide](https://docs.docker.com/engine/reference/commandline/login/) should do it, but we encourage you to read your container registry's official documentation to learn how to do that.
 
 Your image name should respect the container registry format: i.e. if you are using [DockerHub](https://hub.docker.com/) the name of your image should be something like `your-username/image-name:tag-name`. For other registries the full repository URL should be included, i.e. `registry.com/your-username/image-name:tag-name`.
 
