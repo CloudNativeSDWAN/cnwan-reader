@@ -123,3 +123,23 @@ docker run \
 -v ~/Desktop/options/conf.yaml:/options/conf.yaml \
 cnwan/cnwan-reader poll cloudmap --conf ./options/conf.yaml
 ```
+
+### With etcd
+
+In the following example, the CN-WAN Reader watches changes in etcd with the following requirements:
+
+* The *allowed* services have at least the `cnwan.io/traffic-profile` key in their metadata.
+* Username is `admin` and password `s5B7&$n_12C`.
+* There is only one etcd node, on address `10.11.12.13` on default port (`2379`).
+* The service registry has prefix `/service-registry/`
+* The endpoint of the adaptor is the default one (`http://localhost:80/cnwan/events`). In such a case there is no need to use the `--adaptor-api` flag, but here it is included for clarity.
+
+```bash
+docker run cnwan/cnwan-reader watch etcd \
+--metadata-keys cnwan.io/traffic-profile \
+--adaptor-api localhost/cnwan/events \
+--username admin \
+--password s5B7&$n_12C \
+--endpoints 10.11.12.13:2379
+--prefix /service-registry/
+```

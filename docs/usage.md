@@ -79,6 +79,17 @@ In order to use CN-WAN Reader with Cloud Map, your IAM identity needs to have *a
 
 For more information about AWS credentials, you may take a look at aws' [documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html) about this topic.
 
+### etcd
+
+CN-WAN Reader can connect to your *etcd* nodes and watch the values that have been registered there, i.e. with `cnwan-reader watch etcd [FLAGS]` .
+
+In order to work, you will need to provide the addresses of you etcd nodes with the `--endpoints` flag, optional `username` and `password` and a `prefix` in case your service registry on etcd contains one.  
+There is no need to insert all the nodes of your etcd cluster in `--endpoints` but just make sure you enter a few. As per `username` and `password` you can leave them empty if you don't need them to connect to etcd. Finally, `prefix` defaults to `/` in case you don't enter another value.
+
+As a final note, make sure your etcd user has a role that enables it to at least *read* values in the provided prefix.
+
+For more information on flags and examples, please run `cnwan-reader watch etcd --help`.
+
 ## Configuration File
 
 Optionally, a configuration file can be used, which can be used by providing its path with `--conf`. A [configuration model](../examples/config/config.yaml) is there for you on `examples/config`.
@@ -189,4 +200,24 @@ or just:
 
 ```bash
 cnwan-reader --conf /path/to/configuration/file.yaml
+```
+
+### With etcd
+
+In the following example, the CN-WAN Reader watches changes in etcd with the following requirements:
+
+* The *allowed* services have at least the `cnwan.io/traffic-profile` key in their metadata.
+* Username is `admin` and password `s5B7&$n_12C`.
+* There is only one etcd node, on address `10.11.12.13` on default port (`2379`).
+* The service registry has prefix `/service-registry/`
+* The endpoint of the adaptor is the default one (`http://localhost:80/cnwan/events`). In such a case there is no need to use the `--adaptor-api` flag, but here it is included for clarity.
+
+```bash
+cnwan-reader watch etcd \
+--metadata-keys cnwan.io/traffic-profile \
+--adaptor-api localhost/cnwan/events \
+--username admin \
+--password s5B7&$n_12C \
+--endpoints 10.11.12.13:2379
+--prefix /service-registry/
 ```
