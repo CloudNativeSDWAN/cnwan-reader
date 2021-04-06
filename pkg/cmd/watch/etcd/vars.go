@@ -22,7 +22,7 @@ const (
 	etcdLong  string = `etcd command connects to the etcd cluster and watches
 for changes according to the options that you specified as flags.
 
---endpoints is a list of nodes addresses in the form of host:port where etcd is running
+--endpoints is a list of node addresses in the form of host:port where etcd is running
 
 --username and --password must be both not empty if your cluster has authentication
 mode enabled. Otherwise, you can leave both empty if you are allowing guest users to
