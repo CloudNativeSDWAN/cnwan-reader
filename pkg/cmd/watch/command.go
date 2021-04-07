@@ -17,6 +17,7 @@
 package watch
 
 import (
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/cmd/watch/kubernetes"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +37,7 @@ service registry. Not all service registries work this way: include --help or
 	}
 
 	// Subcommands
-	// TODO: add subcommands
+	cmd.AddCommand(kubernetes.GetK8sCommand())
 
 	return cmd
 }
