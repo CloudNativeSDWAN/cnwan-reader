@@ -26,7 +26,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 )
+
+type fakeSQ struct {
+	_enqueue func(map[string]*openapi.Event)
+}
+
+func (sq *fakeSQ) Enqueue(m map[string]*openapi.Event) {
+	sq._enqueue(m)
+}
 
 func TestAreMetadataEqual(t *testing.T) {
 	a := assert.New(t)
@@ -285,4 +294,253 @@ func TestGetServChanges(t *testing.T) {
 			failed(i)
 		}
 	}
+}
+
+func TestProcessNextService(t *testing.T) {
+	a := assert.New(t)
+	res := map[string]*openapi.Event{}
+	added := make(chan bool)
+	sq := &fakeSQ{}
+	sq._enqueue = func(m map[string]*openapi.Event) {
+		res = m
+		added <- true
+	}
+	keys := []string{"target-key"}
+	val := "val"
+	ip := "10.10.10.10"
+	port := int32(80)
+	k := k8sWatcher{opts: k8sOptions{annotationKeys: keys}, store: map[string]*corev1.Service{}, sendQueue: sq}
+	hashName := func() string {
+		h := sha256.New()
+		h.Write([]byte(fmt.Sprintf("%s:%d", ip, port)))
+		name := fmt.Sprintf("ns/serv-%s", hex.EncodeToString(h.Sum(nil))[:10])
+		return name
+	}()
+	cases := []struct {
+		s        *corev1.Service
+		et       watch.EventType
+		expEvs   map[string]*openapi.Event
+		expStore map[string]*corev1.Service
+	}{
+		{
+			s: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "serv",
+					Namespace:   "ns",
+					Annotations: map[string]string{keys[0]: val},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:  corev1.ServiceTypeLoadBalancer,
+					Ports: []corev1.ServicePort{{Port: port}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{IP: ip}},
+					},
+				},
+			},
+			et: watch.Added,
+			expEvs: map[string]*openapi.Event{
+				hashName: {
+					Event: "create",
+					Service: openapi.Service{
+						Name:     hashName,
+						Address:  ip,
+						Port:     port,
+						Metadata: []openapi.Metadata{{Key: keys[0], Value: val}},
+					},
+				},
+			},
+			expStore: map[string]*corev1.Service{
+				"ns/serv": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "serv",
+						Namespace:   "ns",
+						Annotations: map[string]string{keys[0]: val},
+					},
+					Spec: corev1.ServiceSpec{
+						Type:  corev1.ServiceTypeLoadBalancer,
+						Ports: []corev1.ServicePort{{Port: port}},
+					},
+					Status: corev1.ServiceStatus{
+						LoadBalancer: corev1.LoadBalancerStatus{
+							Ingress: []corev1.LoadBalancerIngress{{IP: ip}},
+						},
+					},
+				},
+			},
+		},
+		{
+			s: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "serv",
+					Namespace:   "ns",
+					Annotations: map[string]string{keys[0]: "changed-val"},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:  corev1.ServiceTypeLoadBalancer,
+					Ports: []corev1.ServicePort{{Port: port}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{IP: ip}},
+					},
+				},
+			},
+			et: watch.Modified,
+			expEvs: map[string]*openapi.Event{
+				hashName: {
+					Event: "update",
+					Service: openapi.Service{
+						Name:     hashName,
+						Address:  ip,
+						Port:     port,
+						Metadata: []openapi.Metadata{{Key: keys[0], Value: "changed-val"}},
+					},
+				},
+			},
+			expStore: map[string]*corev1.Service{
+				"ns/serv": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "serv",
+						Namespace:   "ns",
+						Annotations: map[string]string{keys[0]: "changed-val"},
+					},
+					Spec: corev1.ServiceSpec{
+						Type:  corev1.ServiceTypeLoadBalancer,
+						Ports: []corev1.ServicePort{{Port: port}},
+					},
+					Status: corev1.ServiceStatus{
+						LoadBalancer: corev1.LoadBalancerStatus{
+							Ingress: []corev1.LoadBalancerIngress{{IP: ip}},
+						},
+					},
+				},
+			},
+		},
+		{
+			s: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "serv",
+					Namespace:   "ns",
+					Annotations: map[string]string{},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:  corev1.ServiceTypeLoadBalancer,
+					Ports: []corev1.ServicePort{{Port: port}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{IP: ip}},
+					},
+				},
+			},
+			et: watch.Modified,
+			expEvs: map[string]*openapi.Event{
+				hashName: {
+					Event: "delete",
+					Service: openapi.Service{
+						Name:     hashName,
+						Address:  ip,
+						Port:     port,
+						Metadata: []openapi.Metadata{{Key: keys[0], Value: "changed-val"}},
+					},
+				},
+			},
+			expStore: map[string]*corev1.Service{},
+		},
+		{
+			s: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "serv",
+					Namespace:   "ns",
+					Annotations: map[string]string{keys[0]: val},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:  corev1.ServiceTypeLoadBalancer,
+					Ports: []corev1.ServicePort{{Port: port}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{IP: ip}},
+					},
+				},
+			},
+			et: watch.Modified,
+			expEvs: map[string]*openapi.Event{
+				hashName: {
+					Event: "create",
+					Service: openapi.Service{
+						Name:     hashName,
+						Address:  ip,
+						Port:     port,
+						Metadata: []openapi.Metadata{{Key: keys[0], Value: val}},
+					},
+				},
+			},
+			expStore: map[string]*corev1.Service{
+				"ns/serv": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "serv",
+						Namespace:   "ns",
+						Annotations: map[string]string{keys[0]: val},
+					},
+					Spec: corev1.ServiceSpec{
+						Type:  corev1.ServiceTypeLoadBalancer,
+						Ports: []corev1.ServicePort{{Port: port}},
+					},
+					Status: corev1.ServiceStatus{
+						LoadBalancer: corev1.LoadBalancerStatus{
+							Ingress: []corev1.LoadBalancerIngress{{IP: ip}},
+						},
+					},
+				},
+			},
+		},
+		{
+			s: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "serv",
+					Namespace:   "ns",
+					Annotations: map[string]string{keys[0]: val},
+				},
+				Spec: corev1.ServiceSpec{
+					Type:  corev1.ServiceTypeLoadBalancer,
+					Ports: []corev1.ServicePort{{Port: port}},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{IP: ip}},
+					},
+				},
+			},
+			et: watch.Deleted,
+			expEvs: map[string]*openapi.Event{
+				hashName: {
+					Event: "delete",
+					Service: openapi.Service{
+						Name:     hashName,
+						Address:  ip,
+						Port:     port,
+						Metadata: []openapi.Metadata{{Key: keys[0], Value: "val"}},
+					},
+				},
+			},
+			expStore: map[string]*corev1.Service{},
+		},
+	}
+
+	failed := func(i int) {
+		a.FailNow("case failed", fmt.Sprintf("case %d", i))
+	}
+	for i, currCase := range cases {
+		k.processNextService(currCase.s, currCase.et)
+
+		<-added
+
+		if !a.Equal(currCase.expEvs, res) || !a.Equal(currCase.expStore, k.store) {
+			failed(i)
+		}
+	}
+
 }

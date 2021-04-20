@@ -23,6 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/internal/utils"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/util/homedir"
@@ -54,6 +55,13 @@ LoadBalancer services and create events that will be later sent to the CN-WAN Ad
 				cmd.Help()
 				return fmt.Errorf("no annotation keys provided")
 			}
+
+			adaptorEndpoint, err := utils.GetAdaptorEndpointFromFlags(cmd)
+			if err != nil {
+				cmd.Help()
+				return err
+			}
+			opts.adaptorEndpoint = adaptorEndpoint
 
 			k8s := &k8sWatcher{opts: opts, store: map[string]*corev1.Service{}}
 			return k8s.main()

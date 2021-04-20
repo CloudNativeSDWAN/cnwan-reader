@@ -25,6 +25,8 @@ import (
 	"os/signal"
 
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/queue"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/services"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -36,16 +38,22 @@ import (
 )
 
 type k8sOptions struct {
-	kubeconfigPath string
-	annotationKeys []string
+	kubeconfigPath  string
+	adaptorEndpoint string
+	annotationKeys  []string
 }
 
 type k8sWatcher struct {
-	opts  k8sOptions
-	store map[string]*corev1.Service
+	opts      k8sOptions
+	sendQueue queue.Queue
+	store     map[string]*corev1.Service
 }
 
 func (k *k8sWatcher) main() error {
+	// --------------------------------------
+	// Set ups
+	// --------------------------------------
+
 	config, err := clientcmd.BuildConfigFromFlags("", k.opts.kubeconfigPath)
 	if err != nil {
 		log.Err(err).Msg("error while connecting to kubernetes cluster: exiting...")
@@ -67,10 +75,29 @@ func (k *k8sWatcher) main() error {
 		return err
 	}
 
+	// --------------------------------------
+	// Set the helpers
+	// --------------------------------------
+
+	servsHandler, err := services.NewHandler(ctx, k.opts.adaptorEndpoint)
+	if err != nil {
+		canc()
+		return err
+	}
+	k.sendQueue = queue.New(ctx, servsHandler)
+
+	// --------------------------------------
+	// Watch
+	// --------------------------------------
+
 	go func() {
 		k.watch(ctx, w)
 		close(exitChan)
 	}()
+
+	// --------------------------------------
+	// Graceful shutdown
+	// --------------------------------------
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -79,8 +106,6 @@ func (k *k8sWatcher) main() error {
 	fmt.Println()
 	log.Info().Msg("exit requested")
 
-	// Cancel the context and wait for objects that use it to receive
-	// the stop command
 	canc()
 	w.Stop()
 	<-exitChan
@@ -102,114 +127,103 @@ func (k *k8sWatcher) watch(ctx context.Context, w watch.Interface) {
 			return
 		}
 
-		serv := parseService(ev)
-		if serv == nil {
-			continue
-		}
-
-		namespacedName := ktypes.NamespacedName{Namespace: serv.Namespace, Name: serv.Name}
-		l := log.With().Str("event", string(ev.Type)).Str("service", namespacedName.String()).Logger()
-
-		// --------------------------------------
-		// Parse event
-		// --------------------------------------
-
-		// TODO: on future versions this will be changed with the new openapi
-		var oaevents []*openapi.Event
-		switch ev.Type {
-
-		case watch.Deleted:
-			if serv, exists := k.store[namespacedName.String()]; exists {
-				oaservs, _ := getDataFromK8sService(serv, k.opts.annotationKeys)
-				oaevents = make([]*openapi.Event, len(oaservs))
-
-				for i := range oaservs {
-					oaevents[i] = &openapi.Event{
-						Event:   "delete",
-						Service: *oaservs[i],
-					}
-				}
-
-				delete(k.store, namespacedName.String())
-			}
-
-		case watch.Added:
-			oaservs, err := getDataFromK8sService(serv, k.opts.annotationKeys)
-			if err == nil {
-				oaevents = make([]*openapi.Event, len(oaservs))
-				for i := range oaservs {
-					oaevents[i] = &openapi.Event{
-						Event:   "create",
-						Service: *oaservs[i],
-					}
-				}
-
-				k.store[namespacedName.String()] = serv
-			}
-
-		case watch.Modified:
-			prev, prevExists := k.store[namespacedName.String()]
-			prevServs := func() []*openapi.Service {
-				if prev == nil {
-					return []*openapi.Service{}
-				}
-
-				servs, _ := getDataFromK8sService(prev, k.opts.annotationKeys)
-				return servs
-			}()
-
-			currServs, currErr := getDataFromK8sService(serv, k.opts.annotationKeys)
-			if currErr != nil {
-				if prevExists {
-					oaevents = make([]*openapi.Event, len(prevServs))
-					for i := range prevServs {
-						oaevents[i] = &openapi.Event{
-							Event:   "delete",
-							Service: *prevServs[i],
-						}
-					}
-					delete(k.store, namespacedName.String())
-				}
-			} else {
-				if prevExists {
-					oaevents = getServChanges(prevServs, currServs)
-				} else {
-					oaevents = make([]*openapi.Event, len(currServs))
-
-					for i := range currServs {
-						oaevents[i] = &openapi.Event{
-							Event:   "create",
-							Service: *currServs[i],
-						}
-					}
-				}
-
-				k.store[namespacedName.String()] = serv
-			}
-		}
-
-		// --------------------------------------
-		// Send events
-		// --------------------------------------
-
-		if len(oaevents) > 0 {
-			// TODO: actually send events
-			l.Info().Int("events", len(oaevents)).Msg("sending events...")
+		if serv, success := ev.Object.(*corev1.Service); success {
+			k.processNextService(serv, ev.Type)
 		}
 	}
 }
 
-func parseService(ev watch.Event) *corev1.Service {
-	serv, success := ev.Object.(*corev1.Service)
-	if success {
-		return serv
+func (k *k8sWatcher) processNextService(serv *corev1.Service, evtype watch.EventType) {
+	namespacedName := ktypes.NamespacedName{Namespace: serv.Namespace, Name: serv.Name}
+	l := log.With().Str("service", namespacedName.String()).Logger()
+
+	// --------------------------------------
+	// Parse event
+	// --------------------------------------
+
+	// TODO: on future versions this will be changed with the new openapi
+	oaevents := map[string]*openapi.Event{}
+	switch evtype {
+
+	case watch.Deleted:
+		if serv, exists := k.store[namespacedName.String()]; exists {
+			oaservs, _ := getDataFromK8sService(serv, k.opts.annotationKeys)
+
+			for _, serv := range oaservs {
+				oaevents[serv.Name] = &openapi.Event{
+					Event:   "delete",
+					Service: *serv,
+				}
+			}
+
+			delete(k.store, namespacedName.String())
+		}
+
+	case watch.Added:
+		oaservs, err := getDataFromK8sService(serv, k.opts.annotationKeys)
+		if err == nil {
+			for _, serv := range oaservs {
+				oaevents[serv.Name] = &openapi.Event{
+					Event:   "create",
+					Service: *serv,
+				}
+			}
+
+			k.store[namespacedName.String()] = serv
+		}
+
+	case watch.Modified:
+		prev, prevExists := k.store[namespacedName.String()]
+		prevServs := []*openapi.Service{}
+		if prev != nil {
+			prevServs, _ = getDataFromK8sService(prev, k.opts.annotationKeys)
+		}
+
+		currServs, currErr := getDataFromK8sService(serv, k.opts.annotationKeys)
+		if currErr != nil {
+			if prevExists {
+				for _, serv := range prevServs {
+					oaevents[serv.Name] = &openapi.Event{
+						Event:   "delete",
+						Service: *serv,
+					}
+				}
+				delete(k.store, namespacedName.String())
+			}
+		} else {
+			if prevExists {
+				_oaevents := getServChanges(prevServs, currServs)
+				for _, oae := range _oaevents {
+					oaevents[oae.Service.Name] = &openapi.Event{
+						Event:   "update",
+						Service: oae.Service,
+					}
+				}
+			} else {
+				for _, serv := range currServs {
+					oaevents[serv.Name] = &openapi.Event{
+						Event:   "create",
+						Service: *serv,
+					}
+				}
+			}
+
+			k.store[namespacedName.String()] = serv
+		}
 	}
 
-	return nil
+	// --------------------------------------
+	// Send events
+	// --------------------------------------
+
+	if len(oaevents) > 0 {
+		go k.sendQueue.Enqueue(oaevents)
+		l.Info().Int("events", len(oaevents)).Msg("sending events...")
+	}
 }
 
 // TODO: this needs change with next version of openapi
-// TODO: This will be written on a new package of the operator since it uses the same code.
+// TODO: write this on a new package of the operator (since it uses the same code)?
 func getDataFromK8sService(serv *corev1.Service, annKeys []string) ([]*openapi.Service, error) {
 	// -- Is this a LoadBalancer
 	if serv.Spec.Type != corev1.ServiceTypeLoadBalancer {
