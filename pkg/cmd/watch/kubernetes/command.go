@@ -17,10 +17,15 @@
 package kubernetes
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/util/homedir"
 )
 
 var (
@@ -30,10 +35,6 @@ var (
 func init() {
 	output := zerolog.ConsoleWriter{Out: os.Stdout}
 	log = zerolog.New(output).With().Timestamp().Logger().Level(zerolog.InfoLevel)
-}
-
-type k8sOptions struct {
-	kubeconfigPath string
 }
 
 // GetK8sCommand returns the kubernetes command.
@@ -48,13 +49,27 @@ func GetK8sCommand() *cobra.Command {
 Once the connection is established successfully, CN-WAN Reader will observe all
 LoadBalancer services and create events that will be later sent to the CN-WAN Adaptor processing`,
 		Example: "cnwan-reader watch kubernetes --kubeconfig /path/to/another/kubeconfig",
-		Run: func(cmd *cobra.Command, args []string) {
-			// TODO: implement me
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(opts.annotationKeys) == 0 {
+				cmd.Help()
+				return fmt.Errorf("no annotation keys provided")
+			}
+
+			k8s := &k8sWatcher{opts: opts, store: map[string]*corev1.Service{}}
+			return k8s.main()
 		},
 	}
 
 	// Flags
-	cmd.Flags().StringVar(&opts.kubeconfigPath, "kubeconfig", "~/.kube/config", "path to the kubeconfig file to use")
+	cmd.Flags().StringVar(&opts.kubeconfigPath, "kubeconfig", func() string {
+		if home := homedir.HomeDir(); len(home) > 0 {
+			return filepath.Join(home, ".kube", "config")
+		}
+
+		return ""
+	}(), "path to the kubeconfig file to use")
+	cmd.Flags().StringSliceVar(&opts.annotationKeys, "annotation-keys", []string{}, "the annotations keys to look for")
+	cmd.Flags().StringSliceVar(&opts.annotationKeys, "metadata-keys", []string{}, "alias for --annotation-keys")
 
 	return cmd
 }
