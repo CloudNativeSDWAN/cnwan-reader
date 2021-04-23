@@ -48,8 +48,23 @@ func GetK8sCommand() *cobra.Command {
 		Long: `Connect to the kubernetes cluster to watch for services.
 
 Once the connection is established successfully, CN-WAN Reader will observe all
-LoadBalancer services and create events that will be later sent to the CN-WAN Adaptor processing`,
-		Example: "cnwan-reader watch kubernetes --kubeconfig /path/to/another/kubeconfig",
+LoadBalancer services that have the required annotation keys defined by
+the --annotation-keys flag and create events that will be later sent to the
+CN-WAN Adaptor for processing.
+
+In order to work, a valid kubeconfig file is needed and its path must be
+provided with the --kubeconfig flag. If empty, the default one will be
+used, which is usually ~/.kube/config on Unix-based systems.
+
+Additionally, a context can be used via --context: if you want the program
+to monitor a specific Kubernetes cluster you can use this as --context value.
+If empty, CN-WAN Reader will use the same context that kubectl is using.
+
+Make sure the context you are using has permissions to read, watch and list
+services on the Kubernetes cluster you chose, which involves creating
+appropriate ClusterRole and ClusterRoleBinding resources. Please check CN-WAN
+Reader's documentation and Kubernetes documentation to learn more.`,
+		Example: "cnwan-reader watch kubernetes --kubeconfig /path/to/another/kubeconfig --context admin@my-gke-cluster --annotation-keys my-key",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(opts.annotationKeys) == 0 {
 				cmd.Help()
@@ -78,6 +93,7 @@ LoadBalancer services and create events that will be later sent to the CN-WAN Ad
 	}(), "path to the kubeconfig file to use")
 	cmd.Flags().StringSliceVar(&opts.annotationKeys, "annotation-keys", []string{}, "the annotations keys to look for")
 	cmd.Flags().StringSliceVar(&opts.annotationKeys, "metadata-keys", []string{}, "alias for --annotation-keys")
+	cmd.Flags().StringVar(&opts.currentContext, "context", "", "the context to use. If empty, the default one in kubeconfig will be used")
 
 	return cmd
 }

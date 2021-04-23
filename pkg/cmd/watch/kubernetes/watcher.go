@@ -23,24 +23,27 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/queue"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/services"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	corev1 "k8s.io/api/core/v1"
-
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ktypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
+	// ref: https://github.com/kubernetes/client-go/issues/242
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 type k8sOptions struct {
 	kubeconfigPath  string
 	adaptorEndpoint string
 	annotationKeys  []string
+	currentContext  string
 }
 
 type k8sWatcher struct {
@@ -50,17 +53,38 @@ type k8sWatcher struct {
 }
 
 func (k *k8sWatcher) main() error {
+	log.Info().Msg("starting...")
+	defer fmt.Println()
+
 	// --------------------------------------
 	// Set ups
 	// --------------------------------------
 
-	config, err := clientcmd.BuildConfigFromFlags("", k.opts.kubeconfigPath)
+	config, err := clientcmd.LoadFromFile(k.opts.kubeconfigPath)
 	if err != nil {
 		log.Err(err).Msg("error while connecting to kubernetes cluster: exiting...")
 		return err
 	}
 
-	cli, err := kubernetes.NewForConfig(config)
+	var overrides *clientcmd.ConfigOverrides
+	if k.opts.currentContext != "" {
+		log.Info().Str("context", k.opts.currentContext).Msg("using custom context")
+
+		if err := clientcmd.ConfirmUsable(*config, k.opts.currentContext); err != nil {
+			log.Err(err).Msg("error while trying to use context")
+			return err
+		}
+
+		overrides = &clientcmd.ConfigOverrides{CurrentContext: k.opts.currentContext}
+	}
+
+	restcfg, err := clientcmd.NewDefaultClientConfig(*config, overrides).ClientConfig()
+	if err != nil {
+		log.Err(err).Msg("error while connecting to kubernetes cluster: exiting...")
+		return err
+	}
+
+	cli, err := kubernetes.NewForConfig(restcfg)
 	if err != nil {
 		log.Err(err).Msg("error while connecting to kubernetes cluster: exiting...")
 		return err
@@ -70,8 +94,16 @@ func (k *k8sWatcher) main() error {
 	exitChan := make(chan struct{})
 	w, err := cli.CoreV1().Services("").Watch(ctx, metav1.ListOptions{})
 	if err != nil {
+		msg := "error while watching for services on the kubernetes cluster: exiting..."
+
+		// TODO: find a better way check for this
+		if strings.HasPrefix(err.Error(), "unknown") {
+			msg = "error while watching for services on the kubernetes cluster (do you have correct permissions on Kubernetes?): exiting..."
+			err = fmt.Errorf("[%s] %s", err.Error(), msg)
+		}
+
 		canc()
-		log.Err(err).Msg("error while watching for services on the kubernetes cluster: exiting...")
+		log.Err(err).Msg(msg)
 		return err
 	}
 
