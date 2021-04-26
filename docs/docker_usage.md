@@ -123,3 +123,19 @@ docker run \
 -v ~/Desktop/options/conf.yaml:/options/conf.yaml \
 cnwan/cnwan-reader poll cloudmap --conf ./options/conf.yaml
 ```
+
+## With Kubernetes
+
+This example follows the same requirements as this [example](./usage.md#with-kubernetes) -- replace `cnwan/cnwan-reader` with your image in case you have built it yourself:
+
+```bash
+docker run \
+-v ~/path/to/kubeconfig:/.kube/config \
+cnwan/cnwan-reader \
+watch kubernetes \
+--context gke \
+--annotation-keys cnwan.io/traffic-profile \
+--adaptor-api localhost/cnwan/events
+```
+
+Note how you don't have to use `--kubeconfig` in this case, as you are already mounting the kubeconfig file that you want to use and treat it as the default one.

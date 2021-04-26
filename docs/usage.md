@@ -79,6 +79,38 @@ In order to use CN-WAN Reader with Cloud Map, your IAM identity needs to have *a
 
 For more information about AWS credentials, you may take a look at aws' [documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html) about this topic.
 
+### Kubernetes
+
+In order to watch for Kubernetes resources directly, a valid *kubeconfig* file is needed.  
+If you are already using `kubectl` on your machine and can communicate with Kubernetes through it correctly, then you already have one and it is likely located on `~/.kube/config` for Unix-like machines.
+Otherwise it's recommended you create a valid one through [this guide](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) or to follow your host's documentation if you are running a managed Kubernetes solution.
+
+The options to use for Kubernetes are very simple, as you can decide to use a different kubeconfig file with `--kubeconfig`, use a *context* different from the default one with `--context` and use `--annotation-keys` to include the keys to look for.  
+For more information, we encourage you to run `cnwan-reader watch kubernetes --help` for a more thourough description of the flags and description of the command.
+
+#### Optional: a dedicated service account
+
+While you can let the CN-WAN Reader use your default Kubernetes user to watch for services changes, you may want it to use a different one with limited visibility and access privilege.
+
+If this is your case, follow this section to create a new kubeconfig file that you may use with the CN-WAN Reader with the bare minimum amount of permissions it needs to work -- watch for `Service` updates.
+
+Run the following from the root folder of the repository:
+
+```bash
+# Create the service account
+kubectl create sa cnwan-reader-service-account -n default
+
+# Create the cluster role and cluster role binding
+kubectl apply -f ./artifacts/kubernetes/cluster_role.yaml
+
+# Run the included script to generate the kubeconfig file
+./scripts/generate-kubeconfig.sh
+```
+
+You will now have a `config` file on the root directory of the repository that you can use with the CN-WAN Reader with `--kubeconfig` so that you don't have to use the default role.
+
+For more customization options, i.e. using a different kubeconfig file or changing output directory, please run `generate-kubeconfig.sh --help`.
+
 ## Configuration File
 
 Optionally, a configuration file can be used, which can be used by providing its path with `--conf`. A [configuration model](../examples/config/config.yaml) is there for you on `examples/config`.
@@ -189,4 +221,21 @@ or just:
 
 ```bash
 cnwan-reader --conf /path/to/configuration/file.yaml
+```
+
+### With Kubernetes
+
+In the following example, the CN-WAN Reader watches changes in Kubernetes with the following requirements:
+
+* The *allowed* services have at least the `cnwan.io/traffic-profile` key in their **annotations*
+* The kubeconfig file to use is the default one, so there is no need to use `--kubeconfig`
+* The context to use is `gke`
+* The endpoint of the adaptor is the default one (`http://localhost:80/cnwan/events`).
+  * In such a case there is no need to use the `--adaptor-api` flag, but here it is included for clarity.
+
+```bash
+cnwan-reader watch kubernetes\
+--context gke \
+--annotation-keys cnwan.io/traffic-profile \
+--adaptor-api localhost/cnwan/events
 ```
