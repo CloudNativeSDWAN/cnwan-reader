@@ -19,11 +19,13 @@ package cloudmap
 import (
 	"context"
 	"fmt"
+	"path"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/servicediscovery"
 	"github.com/aws/aws-sdk-go/service/servicediscovery/servicediscoveryiface"
 )
@@ -39,6 +41,94 @@ const (
 type awsCloudMap struct {
 	opts *options
 	sd   servicediscoveryiface.ServiceDiscoveryAPI
+}
+
+func (a *awsCloudMap) getServiceTags(ctx context.Context) (map[string]*openapi.Service, error) {
+	out, err := a.sd.ListServicesWithContext(ctx, &servicediscovery.ListServicesInput{})
+	if err != nil {
+		return nil, err
+	}
+
+	keysMap := map[string]bool{}
+	for _, key := range a.opts.keys {
+		keysMap[key] = true
+	}
+
+	servTags := map[string]*openapi.Service{}
+	for _, srv := range out.Services {
+		l := log.With().Str("service-name", aws.StringValue(srv.Name)).Logger()
+
+		metadata := func() map[string]string {
+			tagsCtx, tagsCanc := context.WithTimeout(ctx, 30*time.Second)
+			defer tagsCanc()
+
+			out, err := a.sd.ListTagsForResourceWithContext(tagsCtx, &servicediscovery.ListTagsForResourceInput{
+				ResourceARN: srv.Arn,
+			})
+			if err != nil {
+				l.Warn().Err(err).Msg("could not get tags for service: skipping...")
+				return map[string]string{}
+			}
+
+			tags := map[string]string{}
+			for _, tag := range out.Tags {
+				if _, exists := keysMap[aws.StringValue(tag.Key)]; exists {
+					tags[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
+				}
+			}
+			return tags
+		}()
+
+		if len(metadata) == 0 {
+			continue
+		}
+
+		endps, err := func() ([]*openapi.Service, error) {
+			instCtx, instCanc := context.WithTimeout(ctx, 30*time.Second)
+			defer instCanc()
+
+			insts, err := a.sd.ListInstancesWithContext(instCtx, &servicediscovery.ListInstancesInput{
+				ServiceId: srv.Id,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			srvEp := []*openapi.Service{}
+			for _, inst := range insts.Instances {
+				srvEp = append(srvEp, &openapi.Service{
+					Name:    aws.StringValue(inst.Id),
+					Address: aws.StringValue(inst.Attributes["AWS_INSTANCE_IPV4"]),
+					Port: func() int32 {
+						val, _ := strconv.ParseInt(aws.StringValue(inst.Attributes["AWS_INSTANCE_PORT"]), 10, 32)
+						return int32(val)
+					}(),
+				})
+			}
+			return srvEp, nil
+		}()
+		if err != nil {
+			l.Err(err).Msg("error while getting instances for service: skipping...")
+			continue
+		}
+
+		for _, endp := range endps {
+			name := path.Join(aws.StringValue(srv.Name), endp.Name)
+			servTags[name] = &openapi.Service{
+				Name:    name,
+				Address: endp.Address,
+				Port:    endp.Port,
+				Metadata: func() (met []openapi.Metadata) {
+					for k, v := range metadata {
+						met = append(met, openapi.Metadata{Key: k, Value: v})
+					}
+					return
+				}(),
+			}
+		}
+	}
+
+	return servTags, nil
 }
 
 func (a *awsCloudMap) getCurrentState(ctx context.Context) (map[string]*openapi.Service, error) {
