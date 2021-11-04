@@ -25,8 +25,8 @@ import (
 	opetcd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
 	"github.com/stretchr/testify/assert"
-	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/mvcc/mvccpb"
+	"go.etcd.io/etcd/api/v3/mvccpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/yaml.v2"
 )
 

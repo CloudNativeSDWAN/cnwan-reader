@@ -26,7 +26,7 @@ import (
 	opetcd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
 	"github.com/spf13/cobra"
-	"go.etcd.io/etcd/clientv3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/yaml.v3"
 )
 
