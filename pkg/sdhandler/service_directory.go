@@ -185,19 +185,34 @@ func (g *gcloudServDir) getEndpointsList(serv string) ([]*sdpb.Endpoint, error) 
 }
 
 func (g *gcloudServDir) formatData(endpoint *sdpb.Endpoint, serviceMetadata map[string]string) *openapi.Service {
-	metadataValue, exists := serviceMetadata[g.metadataKey]
-	if !exists {
+	if len(endpoint.Address) == 0 {
 		return nil
 	}
 
-	if len(endpoint.Address) == 0 {
-		return nil
+	if len(g.metadataKey) > 0 {
+		metadataValue, exists := serviceMetadata[g.metadataKey]
+		if !exists {
+			return nil
+		}
+
+		return &openapi.Service{
+			Address:  endpoint.Address,
+			Name:     endpoint.Name,
+			Metadata: []openapi.Metadata{{Key: g.metadataKey, Value: metadataValue}},
+			Port:     endpoint.Port,
+		}
+	}
+
+	// if you're here, it means that the user doesn't care about the metadata keys
+	met := []openapi.Metadata{}
+	for k, v := range serviceMetadata {
+		met = append(met, openapi.Metadata{Key: k, Value: v})
 	}
 
 	return &openapi.Service{
 		Address:  endpoint.Address,
 		Name:     endpoint.Name,
-		Metadata: []openapi.Metadata{{Key: g.metadataKey, Value: metadataValue}},
+		Metadata: met,
 		Port:     endpoint.Port,
 	}
 }
