@@ -36,15 +36,15 @@ Please follow [OpenAPI Specification](../README.md#openapi-specification) to lea
 
 ## Metadata Key
 
-The CN-WAN Reader only reads services that have the provided metadata key.
+If you don't specify a value in `--metadata-key`, the CN-WAN Reader will retrieve **all** services that it will find on the service registry along with **all** their metadata. Keep in mind that this may overwhelm any adaptor that receives such data and puts it in charge of filtering incoming events.
 
-For example, the following flag
+If, instead, you want to only retrieve services that have a required metadata key, you can provide that value as follows:
 
 ```bash
 --metadata-key cnwan.io/traffic-profile
 ```
 
-will make the program only look for services whose metadata contain `cnwan.io/traffic-profile` and ignore all services that don't have it. Please note that it will only look for the *key* and will not do any type of filtering on the value, as this job is performed by the CN-WAN Adaptor or whomever is in charge of handling the values.
+in this example only services that contain `cnwan.io/traffic-profile` in its metadata will be retrieved, leaving the value intact; and services that don't have it will be ignored.
 
 ## Service registries
 
@@ -83,7 +83,7 @@ For more information about AWS credentials, you may take a look at aws' [documen
 
 CN-WAN Reader can connect to your *etcd* nodes and watch the values that have been registered there, i.e. with `cnwan-reader watch etcd [FLAGS]` .
 
-In order to work, you will need to provide the addresses of you etcd nodes with the `--endpoints` flag, optional `username` and `password` and a `prefix` in case your service registry on etcd contains one.  
+In order to work, you will need to provide the addresses of you etcd nodes with the `--endpoints` flag, optional `username` and `password` and a `prefix` in case your service registry on etcd contains one.
 There is no need to insert all the nodes of your etcd cluster in `--endpoints` but just make sure you enter a few. As per `username` and `password` you can leave them empty if you don't need them to connect to etcd. Finally, `prefix` defaults to `/` in case you don't enter another value.
 
 As a final note, make sure your etcd user has a role that enables it to at least *read* values in the provided prefix.

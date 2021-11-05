@@ -28,7 +28,7 @@ import (
 )
 
 // GetMetadataKeysFromCmdFlags returns the keys from --metadata-keys flag
-func GetMetadataKeysFromCmdFlags(cmd *cobra.Command) ([]string, error) {
+func GetMetadataKeysFromCmdFlags(cmd *cobra.Command) []string {
 	keys := []string{}
 
 	if cmd.Flags().Changed("metadata-keys") {
@@ -41,12 +41,12 @@ func GetMetadataKeysFromCmdFlags(cmd *cobra.Command) ([]string, error) {
 
 	switch l := len(keys); {
 	case l == 0:
-		return nil, fmt.Errorf("no metadata keys provided")
+		return []string{}
 	case l > 1:
 		log.Warn().Msg("multiple metadata keys are not supported yet, only the first one will be used")
 		fallthrough
 	default:
-		return []string{keys[0]}, nil
+		return []string{keys[0]}
 	}
 }
 

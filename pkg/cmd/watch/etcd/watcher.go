@@ -32,7 +32,6 @@ import (
 
 type etcdWatcher struct {
 	options *Options
-	keys    []string
 	cli     *clientv3.Client
 	kv      clientv3.KV
 	watcher clientv3.Watcher
@@ -104,7 +103,7 @@ func (e *etcdWatcher) parseEndpointAndCreateEvent(kvpair *mvccpb.KeyValue, event
 		return nil, err
 	}
 
-	if !mapContainsKeys(srv.Metadata, e.options.targetKeys) {
+	if len(e.options.targetKeys) > 0 && !mapContainsKeys(srv.Metadata, e.options.targetKeys) {
 		l.Info().Msg("endpoint's parent service doesn't have target metadata keys: skipping...")
 		return nil, nil
 	}

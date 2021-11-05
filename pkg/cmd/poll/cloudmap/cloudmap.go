@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/servicediscovery"
 	"github.com/aws/aws-sdk-go/service/servicediscovery/servicediscoveryiface"
 )
@@ -134,13 +135,25 @@ func (a *awsCloudMap) parseInstance(servID string, inst *servicediscovery.Instan
 
 	found := 0
 	metadata := map[string]string{}
-	for _, key := range a.opts.keys {
-		if val, exists := inst.Attributes[key]; exists && val != nil && len(*val) > 0 {
+	for key, val := range inst.Attributes {
+		// in case we should take all attributes...
+		// NOTE: this will also take AWS reserved attributes! But if that's
+		// what you want...
+		if len(a.opts.keys) == 0 {
 			found++
-			metadata[key] = *val
+			metadata[key] = aws.StringValue(val)
+			continue
+		}
+
+		// in case we need to filter...
+		for _, filterKey := range a.opts.keys {
+			if filterKey == key {
+				found++
+				metadata[key] = aws.StringValue(val)
+			}
 		}
 	}
-	if found != len(a.opts.keys) {
+	if len(a.opts.keys) > 0 && found != len(a.opts.keys) {
 		return nil, fmt.Errorf("instance doesn't have required metadata keys")
 	}
 

@@ -67,11 +67,7 @@ func parseFlags(cmd *cobra.Command, conf *configuration.Config) (*options, error
 	}
 	opts.interval = pollInterval
 
-	keys, err := utils.GetMetadataKeysFromCmdFlags(cmd)
-	if err != nil {
-		return nil, err
-	}
-	opts.keys = keys
+	opts.keys = utils.GetMetadataKeysFromCmdFlags(cmd)
 
 	adaptor, err := utils.GetAdaptorEndpointFromFlags(cmd)
 	if err != nil {

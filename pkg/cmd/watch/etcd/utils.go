@@ -32,13 +32,8 @@ import (
 
 func sanitizeLocalhost(host string, mode string) (string, error) {
 	_host := host
-	if strings.HasPrefix(_host, "https://") {
-		_host = _host[len("https://"):]
-	}
-	if strings.HasPrefix(_host, "http://") {
-		_host = _host[len("http://"):]
-	}
-
+	_host = strings.TrimPrefix(_host, "https:")
+	_host = strings.TrimPrefix(_host, "http:")
 	_host = strings.Trim(_host, "/")
 
 	if len(_host) == 0 {
@@ -107,7 +102,7 @@ func parseFlags(cmd *cobra.Command) (*Options, error) {
 	_keys, _ := cmd.Flags().GetStringSlice("metadata-keys")
 	switch l := len(_keys); {
 	case l == 0:
-		return nil, fmt.Errorf("no metadata keys provided")
+		// nothing to do... allow to take all metadata
 	case l > 1:
 		log.Warn().Msg("multiple metadata keys are not supported yet, only the first one will be used")
 		fallthrough
@@ -210,9 +205,6 @@ func createOpenapiEvent(endp *opsr.Endpoint, srv *opsr.Service, eventType string
 }
 
 func mapContainsKeys(subject map[string]string, targets []string) bool {
-	// TODO: this will be useful for other commands as well, so it will be
-	// put in a sort of utils package
-
 	foundKeys := 0
 	for _, targetKey := range targets {
 		if _, exists := subject[targetKey]; exists {

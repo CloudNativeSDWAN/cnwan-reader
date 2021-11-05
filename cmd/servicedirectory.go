@@ -72,11 +72,11 @@ func validateSDFlags(cmd *cobra.Command) error {
 
 	// TODO: this needs to be changed to "metadata-keys" on future versions
 	if len(metadataKey) == 0 {
-		if len(conf.MetadataKeys) == 0 {
-			return fmt.Errorf("error: no metadata key set")
+		if len(conf.MetadataKeys) > 0 {
+			metadataKey = conf.MetadataKeys[0]
+		} else {
+			log.Warn().Msg("no metadata keys set: this configuration will potentially retrieve many services")
 		}
-
-		metadataKey = conf.MetadataKeys[0]
 	}
 
 	if len(gcloudProject) == 0 {
