@@ -51,17 +51,6 @@ func TestParseFlags(t *testing.T) {
 		{
 			cmd: func() *cobra.Command {
 				c := GetCloudMapCommand()
-				c.SetArgs([]string{"--region=whatever"})
-				c.PreRun = func(*cobra.Command, []string) {}
-				c.Run = func(*cobra.Command, []string) {}
-				c.Execute()
-				return c
-			}(),
-			expErr: fmt.Errorf("no metadata keys provided"),
-		},
-		{
-			cmd: func() *cobra.Command {
-				c := GetCloudMapCommand()
 				c.SetArgs([]string{"--region=whatever", "--metadata-keys=this"})
 				c.PreRun = func(*cobra.Command, []string) {}
 				c.Run = func(*cobra.Command, []string) {}

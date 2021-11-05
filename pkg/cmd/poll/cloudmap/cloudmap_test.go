@@ -99,7 +99,6 @@ func TestGetInstances(t *testing.T) {
 	a := assert.New(t)
 	instID1 := "inst-id"
 	instID2 := "inst-id-2"
-	empty := ""
 	ip4 := "10.10.10.10"
 	ip6 := "2001:db8:a0b:12f0::1"
 	port := int32(8989)
@@ -114,18 +113,6 @@ func TestGetInstances(t *testing.T) {
 				return nil, fmt.Errorf("any error")
 			},
 			expErr: fmt.Errorf("any error"),
-		},
-		{
-			listInst: func(ctx aws.Context, input *servicediscovery.ListInstancesInput, opts ...request.Option) (*servicediscovery.ListInstancesOutput, error) {
-				return &servicediscovery.ListInstancesOutput{
-					Instances: []*servicediscovery.InstanceSummary{
-						{
-							Id: &empty,
-						},
-					},
-				}, nil
-			},
-			expRes: []*openapi.Service{},
 		},
 		{
 			listInst: func(ctx aws.Context, input *servicediscovery.ListInstancesInput, opts ...request.Option) (*servicediscovery.ListInstancesOutput, error) {
