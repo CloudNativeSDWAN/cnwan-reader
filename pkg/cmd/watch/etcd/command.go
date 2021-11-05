@@ -29,8 +29,8 @@ import (
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/services"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
-	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/clientv3/namespace"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	namespace "go.etcd.io/etcd/client/v3/namespace"
 )
 
 var (
@@ -70,7 +70,7 @@ func GetEtcdCommand() *cobra.Command {
 				return
 			}
 
-			sr, _ := opetcd.NewServiceRegistryWithEtcd(context.Background(), cli, &options.Prefix)
+			sr := opetcd.NewServiceRegistryWithEtcd(context.Background(), cli, &options.Prefix)
 
 			watcher = &etcdWatcher{
 				options: options,
