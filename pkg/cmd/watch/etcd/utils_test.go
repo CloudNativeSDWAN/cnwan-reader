@@ -128,12 +128,6 @@ func TestParseFlags(t *testing.T) {
 	}{
 		{
 			cmd: func() *cobra.Command {
-				return GetEtcdCommand()
-			}(),
-			expErr: fmt.Errorf("no metadata keys provided"),
-		},
-		{
-			cmd: func() *cobra.Command {
 				c := GetEtcdCommand()
 				c.SetArgs([]string{"--metadata-keys=whatever,whatever2"})
 				c.PreRun = func(*cobra.Command, []string) {}
