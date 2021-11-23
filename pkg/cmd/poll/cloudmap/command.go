@@ -23,6 +23,7 @@ import (
 	"os/signal"
 
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/configuration"
+	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/poller"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/queue"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/services"
@@ -48,6 +49,7 @@ func init() {
 // other programming pattern, maybe with a factory.
 func GetCloudMapCommand() *cobra.Command {
 	var cm *awsCloudMap
+	var withTags bool
 
 	cmd := &cobra.Command{
 		Use:     cmdUse,
@@ -82,7 +84,7 @@ func GetCloudMapCommand() *cobra.Command {
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			run(cm)
+			run(cm, withTags)
 		},
 	}
 
@@ -90,12 +92,16 @@ func GetCloudMapCommand() *cobra.Command {
 	cmd.Flags().String("region", "", "region to use")
 	cmd.Flags().String("credentials-path", "", "the path to the credentials file")
 	cmd.Flags().StringSlice("metadata-keys", []string{}, "the metadata keys to watch for")
+	cmd.Flags().BoolVar(&withTags, "with-tags", false, "whether to look for AWS tags rather than attributes")
 
 	return cmd
 }
 
-func run(cm *awsCloudMap) {
+func run(cm *awsCloudMap, withTags bool) {
 	log.Info().Str("service-registry", "Cloud Map").Str("adaptor", cm.opts.adaptor).Msg("starting...")
+	if withTags {
+		log.Info().Msg("switching to tag parsing...")
+	}
 
 	ctx, canc := context.WithCancel(context.Background())
 
@@ -108,7 +114,17 @@ func run(cm *awsCloudMap) {
 
 	go func() {
 		log.Info().Msg("getting initial state...")
-		oaSrvs, err := cm.getCurrentState(ctx)
+		var (
+			oaSrvs map[string]*openapi.Service
+			err    error
+		)
+
+		if !withTags {
+			oaSrvs, err = cm.getCurrentState(ctx)
+		} else {
+			oaSrvs, err = cm.getServiceTags(ctx)
+		}
+
 		if err != nil {
 			log.Fatal().Err(err).Msg("error while getting initial state of cloud map")
 			return
@@ -123,7 +139,17 @@ func run(cm *awsCloudMap) {
 		log.Info().Msg("observing changes...")
 		poll := poller.New(ctx, cm.opts.interval)
 		poll.SetPollFunction(func() {
-			oaSrvs, err := cm.getCurrentState(ctx)
+			var (
+				oaSrvs map[string]*openapi.Service
+				err    error
+			)
+
+			if !withTags {
+				oaSrvs, err = cm.getCurrentState(ctx)
+			} else {
+				oaSrvs, err = cm.getServiceTags(ctx)
+			}
+
 			if err != nil {
 				log.Err(err).Msg("error while polling, skipping...")
 				return

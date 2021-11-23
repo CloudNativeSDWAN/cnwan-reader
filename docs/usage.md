@@ -83,7 +83,7 @@ For more information about AWS credentials, you may take a look at aws' [documen
 
 CN-WAN Reader can connect to your *etcd* nodes and watch the values that have been registered there, i.e. with `cnwan-reader watch etcd [FLAGS]` .
 
-In order to work, you will need to provide the addresses of you etcd nodes with the `--endpoints` flag, optional `username` and `password` and a `prefix` in case your service registry on etcd contains one.  
+In order to work, you will need to provide the addresses of your etcd nodes with the `--endpoints` flag, optional `username` and `password` and a `prefix` in case your service registry on etcd contains one.
 There is no need to insert all the nodes of your etcd cluster in `--endpoints` but just make sure you enter a few. As per `username` and `password` you can leave them empty if you don't need them to connect to etcd. Finally, `prefix` defaults to `/` in case you don't enter another value.
 
 As a final note, make sure your etcd user has a role that enables it to at least *read* values in the provided prefix.
@@ -201,6 +201,12 @@ or just:
 ```bash
 cnwan-reader --conf /path/to/configuration/file.yaml
 ```
+
+#### Using tags
+
+The default behavior of the CN-WAN Reader is to parse *attributes* on service instances. This behavior can be changed with `--with-tags`, which will tell the CN-WAN Reader to look for [tags](https://docs.aws.amazon.com/general/latest/gr/aws_tagging.html) on services instead of attributes on instances.
+
+This won't change how data is sent to the adaptor but only how it is searched and parsed on Cloud Map: if you store your metadata as attributes you may continue to use the *cloudmap* command as always; but if you register relevant metadata as *tags* -- i.e. if you register services with the CN-WAN Operator, then we recommend you to use `--with-tags`.
 
 ### With etcd
 
