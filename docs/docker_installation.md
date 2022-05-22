@@ -20,7 +20,7 @@ This requires you to have [Docker](https://www.docker.com/get-started) installed
 Run
 
 ```bash
-docker pull cnwan/cnwan-reader:v0.3.0
+docker pull cnwan/cnwan-reader:v0.6.0
 ```
 
 Now you can use the program as
