@@ -1,4 +1,4 @@
-// Copyright © 2021 Cisco
+// Copyright © 2022 Cisco
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -55,21 +55,21 @@ func (e *etcdWatcher) Watch(ctx context.Context) {
 
 			switch evType := ev.Type; {
 			case evType == mvccpb.DELETE:
-				if key.ObjectType() == opetcd.EndpointObject && ev.PrevKv != nil && ev.PrevKv.Value != nil {
+				if key.ObjectType() == opetcd.EndpointObject && ev.PrevKv != nil && len(ev.PrevKv.Value) > 0 {
 					log.Info().Str("key", key.String()).Msg("detected deleted endpoint")
 					if endpEv, err := e.parseEndpointAndCreateEvent(ev.PrevKv, "delete"); err == nil && endpEv != nil {
 						eventsToSend = map[string]*openapi.Event{key.String(): endpEv}
 					}
 				}
 			case evType == mvccpb.PUT && ev.IsCreate():
-				if key.ObjectType() == opetcd.EndpointObject && ev.Kv.Value != nil {
+				if key.ObjectType() == opetcd.EndpointObject && len(ev.Kv.Value) > 0 {
 					log.Info().Str("key", key.String()).Msg("new endpoint detected")
-					if endpEv, err := e.parseEndpointAndCreateEvent(ev.PrevKv, "create"); err == nil && endpEv != nil {
+					if endpEv, err := e.parseEndpointAndCreateEvent(ev.Kv, "create"); err == nil && endpEv != nil {
 						eventsToSend = map[string]*openapi.Event{key.String(): endpEv}
 					}
 				}
 			case evType == mvccpb.PUT && ev.IsModify():
-				if key.ObjectType() == opetcd.EndpointObject {
+				if key.ObjectType() == opetcd.EndpointObject && len(ev.Kv.Value) > 0 {
 					log.Info().Str("key", key.String()).Msg("detected updated endpoint")
 					if endpEv, err := e.parseEndpointChange(ev.Kv, ev.PrevKv); err == nil && endpEv != nil {
 						eventsToSend = map[string]*openapi.Event{key.String(): endpEv}
