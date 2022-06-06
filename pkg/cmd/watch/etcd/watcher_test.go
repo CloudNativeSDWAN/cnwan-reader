@@ -1,4 +1,4 @@
-// Copyright © 2021 Cisco
+// Copyright © 2021, 2022 Cisco
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -209,16 +209,6 @@ func TestParseEndpointAndCreateEvent(t *testing.T) {
 				}(),
 			},
 			expErr: opsr.ErrNsNameNotProvided,
-		},
-		{
-			kv: &mvccpb.KeyValue{
-				Key:   []byte(okEndpKey.String()),
-				Value: okEndpVal,
-			},
-			getServ: func(nsName, servName string) (*opsr.Service, error) {
-				return nil, opsr.ErrNotFound
-			},
-			expErr: opsr.ErrNotFound,
 		},
 		{
 			kv: &mvccpb.KeyValue{

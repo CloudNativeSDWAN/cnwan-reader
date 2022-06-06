@@ -19,10 +19,14 @@
 package etcd
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
 	opsr "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry"
+	"github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	opetcd "github.com/CloudNativeSDWAN/cnwan-operator/pkg/servregistry/etcd"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/openapi"
 	"github.com/CloudNativeSDWAN/cnwan-reader/pkg/queue"
@@ -102,8 +106,17 @@ func (e *etcdWatcher) parseEndpointAndCreateEvent(kvpair *mvccpb.KeyValue, event
 
 	srv, err := e.servreg.GetServ(endp.NsName, endp.ServName)
 	if err != nil {
-		l.Err(err).Msg("error while trying to get parent service: skipping endpoint...")
-		return nil, err
+		if errors.Is(err, servregistry.ErrNotFound) {
+			fmt.Println("getting before the delete")
+			// If not found, then we'll try to get the previous version
+			srv, err = e.getServiceBeforeDelete(etcd.KeyFromNames(endp.NsName, endp.ServName).String())
+		}
+
+		// Still an error?
+		if err != nil {
+			l.Err(err).Msg("error while trying to get parent service: skipping endpoint...")
+			return nil, err
+		}
 	}
 
 	if !mapContainsKeys(srv.Metadata, e.options.targetKeys) {
@@ -113,6 +126,32 @@ func (e *etcdWatcher) parseEndpointAndCreateEvent(kvpair *mvccpb.KeyValue, event
 
 	event := createOpenapiEvent(endp, srv, eventName)
 	return event, nil
+}
+
+func (e *etcdWatcher) getServiceBeforeDelete(name string) (*opsr.Service, error) {
+	// First, we need to get the revision (WithPrevKV does not work here)
+	resp, err := e.kv.Get(context.Background(), name, clientv3.WithCountOnly())
+	if err != nil {
+		return nil, fmt.Errorf("error while getting key last revision: %w", err)
+	}
+
+	// Now we get the object with the previous revision
+	resp, err = e.kv.Get(context.Background(), name, clientv3.WithRev(resp.Header.Revision-1))
+	if err != nil {
+		return nil, fmt.Errorf("error while getting service with previous revision: %w", err)
+	}
+
+	if resp.Count == 0 {
+		return nil, servregistry.ErrNotFound
+	}
+
+	var serv opsr.Service
+	if err := yaml.NewDecoder(bytes.NewReader(resp.Kvs[0].Value)).
+		Decode(&serv); err != nil {
+		return nil, fmt.Errorf("could not unmarshal service: %w", err)
+	}
+
+	return &serv, nil
 }
 
 func (e *etcdWatcher) parseEndpointChange(now, prev *mvccpb.KeyValue) (*openapi.Event, error) {
